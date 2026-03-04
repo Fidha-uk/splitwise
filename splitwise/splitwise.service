@@ -1,0 +1,29 @@
+# /etc/systemd/system/splitwise.service
+# Copy to /etc/systemd/system/ then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable splitwise
+#   sudo systemctl start splitwise
+
+[Unit]
+Description=SplitWise — Group Expense Sharing
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/splitwise
+EnvironmentFile=/var/www/splitwise/.env
+ExecStart=/var/www/splitwise/venv/bin/gunicorn wsgi:application \
+    --bind 127.0.0.1:5000 \
+    --workers 4 \
+    --worker-class sync \
+    --timeout 120 \
+    --keep-alive 5 \
+    --access-logfile /var/www/splitwise/instance/access.log \
+    --error-logfile  /var/www/splitwise/instance/error.log \
+    --log-level info
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

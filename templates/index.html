@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SplitWise — Group Expense Sharing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:    #0f1c2e;
+  --navy2:   #1a2e4a;
+  --teal:    #0d7377;
+  --mint:    #14bdac;
+  --light:   #e8f4f8;
+  --white:   #ffffff;
+  --gray:    #64748b;
+  --danger:  #ef4444;
+  --gold:    #f59e0b;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--navy);
+  color: var(--white);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND GRID ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(13,115,119,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13,115,119,0.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+.orb-1 { width: 500px; height: 500px; background: rgba(13,115,119,0.18); top:-150px; right:-100px; animation: drift 8s ease-in-out infinite alternate; }
+.orb-2 { width: 350px; height: 350px; background: rgba(20,189,172,0.12); bottom:-100px; left:-80px; animation: drift 10s ease-in-out infinite alternate-reverse; }
+@keyframes drift { from{transform:translate(0,0)} to{transform:translate(30px,30px)} }
+
+/* ── LAYOUT ── */
+.container {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 480px;
+  min-height: 100vh;
+}
+
+/* ── LEFT HERO ── */
+.hero {
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.logo span { color: var(--mint); }
+
+.hero-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 60px 0 40px; }
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(20,189,172,0.12); border: 1px solid rgba(20,189,172,0.3);
+  border-radius: 100px; padding: 6px 16px;
+  font-size: 0.78rem; color: var(--mint); letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 28px; width: fit-content;
+}
+.hero-tag::before { content:'●'; font-size:0.5rem; }
+
+.hero h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2.8rem, 5vw, 4.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  margin-bottom: 24px;
+}
+.hero h1 em { color: var(--mint); font-style: normal; }
+
+.hero p {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 44px;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 560px;
+}
+.feature {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 20px;
+  transition: all .25s;
+}
+.feature:hover { background: rgba(20,189,172,0.08); border-color: rgba(20,189,172,0.25); transform: translateY(-2px); }
+.feature-icon { font-size: 1.5rem; margin-bottom: 10px; }
+.feature h4 { font-family: 'Syne',sans-serif; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+.feature p  { font-size: 0.75rem; color: rgba(255,255,255,0.45); line-height: 1.5; }
+
+.hero-footer {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.25);
+}
+
+/* ── RIGHT AUTH PANEL ── */
+.auth-panel {
+  background: rgba(255,255,255,0.03);
+  border-left: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+}
+.auth-box {
+  width: 100%;
+  max-width: 380px;
+}
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 32px;
+}
+.tab-btn {
+  flex: 1; padding: 10px;
+  background: none; border: none; cursor: pointer;
+  border-radius: 9px;
+  font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.9rem;
+  color: rgba(255,255,255,0.4);
+  transition: all .2s;
+}
+.tab-btn.active {
+  background: var(--teal);
+  color: var(--white);
+}
+
+.form-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.form-subtitle {
+  font-size: 0.88rem;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 28px;
+}
+
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 7px;
+  letter-spacing: 0.3px;
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  transition: all .2s;
+  outline: none;
+}
+.form-group input::placeholder { color: rgba(255,255,255,0.25); }
+.form-group input:focus, .form-group select:focus {
+  border-color: var(--mint);
+  background: rgba(20,189,172,0.06);
+  box-shadow: 0 0 0 3px rgba(20,189,172,0.15);
+}
+.form-group select option { background: var(--navy2); }
+
+.btn-primary {
+  width: 100%; padding: 14px;
+  background: var(--teal);
+  border: none; border-radius: 10px;
+  color: var(--white);
+  font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.3px;
+  transition: all .2s;
+  margin-top: 8px;
+  position: relative; overflow: hidden;
+}
+.btn-primary::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+}
+.btn-primary:hover { background: var(--mint); transform: translateY(-1px); box-shadow: 0 8px 25px rgba(13,115,119,0.4); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0;
+  font-size: 0.78rem; color: rgba(255,255,255,0.25);
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1;
+  height: 1px; background: rgba(255,255,255,0.1);
+}
+
+.demo-btn {
+  width: 100%; padding: 12px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.3); border-radius: 10px;
+  color: var(--gold);
+  font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500;
+  cursor: pointer; transition: all .2s;
+}
+.demo-btn:hover { background: rgba(245,158,11,0.2); }
+
+.error-msg {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 0.85rem; color: #fca5a5;
+  margin-top: 12px; display: none;
+}
+.error-msg.show { display: block; animation: fadeIn .2s; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block; vertical-align: middle; margin-right: 6px;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+
+@media (max-width: 900px) {
+  .container { grid-template-columns: 1fr; }
+  .hero { padding: 40px 30px; }
+  .hero h1 { font-size: 2.4rem; }
+  .features { grid-template-columns: 1fr 1fr; }
+  .auth-panel { padding: 40px 24px; border-left: none; border-top: 1px solid rgba(255,255,255,0.07); }
+}
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="container">
+  <!-- HERO -->
+  <div class="hero">
+    <div class="logo">Split<span>Wise</span></div>
+
+    <div class="hero-body">
+      <div class="hero-tag">Automated Group Expense Sharing</div>
+      <h1>Split bills.<br><em>Not friendships.</em></h1>
+      <p>Track group expenses effortlessly. Scan bills with OCR, split costs fairly, settle debts instantly — designed for trips, flatmates, and projects.</p>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">📷</div>
+          <h4>OCR Scanning</h4>
+          <p>Snap a receipt, auto-extract amounts</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">⚡</div>
+          <h4>Smart Splits</h4>
+          <p>Equal or custom splits in seconds</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📊</div>
+          <h4>Live Reports</h4>
+          <p>Real-time balances & summaries</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">👥</div>
+          <h4>Groups</h4>
+          <p>Multiple groups, zero confusion</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">💱</div>
+          <h4>Multi-currency</h4>
+          <p>INR, USD, EUR & more</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">✅</div>
+          <h4>Settle Up</h4>
+          <p>Minimal transactions to clear debts</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-footer">M-DIT Kozhikode · Dept. of CSE · Group 1 · 2026</div>
+  </div>
+
+  <!-- AUTH PANEL -->
+  <div class="auth-panel">
+    <div class="auth-box">
+      <div class="auth-tabs">
+        <button class="tab-btn active" onclick="showTab('login')">Sign In</button>
+        <button class="tab-btn" onclick="showTab('register')">Register</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <div id="login-form">
+        <div class="form-title">Welcome back</div>
+        <div class="form-subtitle">Sign in to your account</div>
+        <div class="form-group">
+          <label>Email address</label>
+          <input type="email" id="login-email" placeholder="you@email.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn-primary" onclick="doLogin()" id="login-btn">Sign In</button>
+        <div class="error-msg" id="login-error"></div>
+        <div class="divider">or try a demo</div>
+        <button class="demo-btn" onclick="demoLogin()">🎯 Load Demo Data & Sign In</button>
+      </div>
+
+      <!-- REGISTER FORM -->
+      <div id="register-form" style="display:none">
+        <div class="form-title">Create account</div>
+        <div class="form-subtitle">Join and start splitting expenses</div>
+        <div class="form-group">
+          <label>Full name</label>
+          <input type="text" id="reg-name" placeholder="Your name">
+        </div>
+        <div class="form-group">
+          <label>Email address</label>
+          <input type="email" id="reg-email" placeholder="you@email.com">
+        </div>
+        <div class="form-group">
+          <label>Phone number <span style="opacity:.45;font-size:.78rem">(optional — used to find you in groups)</span></label>
+          <div style="display:flex;gap:8px">
+            <select id="reg-cc" style="width:110px;padding:12px 8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:.88rem;outline:none;flex-shrink:0">
+              <option value="+91">🇮🇳 +91</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+971">🇦🇪 +971</option>
+              <option value="+65">🇸🇬 +65</option>
+              <option value="+61">🇦🇺 +61</option>
+            </select>
+            <input type="tel" id="reg-phone" placeholder="9876543210" style="flex:1">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="reg-password" placeholder="Min 6 characters">
+        </div>
+        <div class="form-group">
+          <label>Default currency</label>
+          <select id="reg-currency">
+            <option value="INR">₹ INR — Indian Rupee</option>
+            <option value="USD">$ USD — US Dollar</option>
+            <option value="EUR">€ EUR — Euro</option>
+            <option value="GBP">£ GBP — British Pound</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="doRegister()" id="reg-btn">Create Account</button>
+        <div class="error-msg" id="reg-error"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0 && tab==='login') || (i===1 && tab==='register')));
+  document.getElementById('login-form').style.display    = tab==='login'    ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab==='register' ? 'block' : 'none';
+}
+
+async function doLogin() {
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) { showErr(err, 'Please fill all fields.'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Signing in…';
+  try {
+    const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
+    const d = await r.json();
+    if (!r.ok) { showErr(err, d.error); btn.disabled=false; btn.innerHTML='Sign In'; return; }
+    window.location.href = '/dashboard';
+  } catch(e) { showErr(err, 'Network error.'); btn.disabled=false; btn.innerHTML='Sign In'; }
+}
+
+async function doRegister() {
+  const btn = document.getElementById('reg-btn');
+  const err = document.getElementById('reg-error');
+  const name     = document.getElementById('reg-name').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const currency = document.getElementById('reg-currency').value;
+  const cc       = document.getElementById('reg-cc').value;
+  const rawPhone = document.getElementById('reg-phone').value.trim();
+  const phone    = rawPhone ? cc + rawPhone.replace(/^0+/, '') : '';
+  if (!name || !email || !password) { showErr(err,'Please fill all required fields.'); return; }
+  if (password.length < 6) { showErr(err,'Password must be at least 6 characters.'); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Creating account…';
+  try {
+    const r = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, email, password, currency, phone}) });
+    const d = await r.json();
+    if (!r.ok) { showErr(err, d.error); btn.disabled=false; btn.innerHTML='Create Account'; return; }
+    window.location.href = '/dashboard';
+  } catch(e) { showErr(err,'Network error.'); btn.disabled=false; btn.innerHTML='Create Account'; }
+}
+
+async function demoLogin() {
+  // seed first, then login
+  await fetch('/api/seed', {method:'POST'});
+  document.getElementById('login-email').value = 'amaya@demo.com';
+  document.getElementById('login-password').value = 'demo123';
+  showTab('login');
+  await doLogin();
+}
+
+function showErr(el, msg) {
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const lf = document.getElementById('login-form');
+  const rf = document.getElementById('register-form');
+  if (lf.style.display !== 'none') doLogin();
+  else doRegister();
+});
+</script>
+</body>
+</html>
