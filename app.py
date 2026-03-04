@@ -205,6 +205,15 @@ def index():
 def dashboard():
     return render_template('dashboard.html') if session.get('user_id') else redirect('/')
 
+@app.after_request
+def security_headers(resp):
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    resp.headers['X-Frame-Options'] = 'DENY'
+    resp.headers['X-XSS-Protection'] = '1; mode=block'
+    resp.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    resp.headers['Permissions-Policy'] = 'geolocation=(), microphone=()'
+    return resp
+
 @app.route('/health')
 def health(): return jsonify({'status':'ok','time':now()})
 
@@ -215,6 +224,8 @@ def register():
     name=(d.get('name') or '').strip(); email=(d.get('email') or '').strip().lower()
     pw=d.get('password',''); phone=normalize_phone(d.get('phone',''))
     if not name or not email or not pw: return jsonify({'error':'Name, email and password required'}),400
+    if len(name)>100 or len(email)>200: return jsonify({'error':'Input too long'}),400
+    if len(pw)>128: return jsonify({'error':'Password too long'}),400
     if len(pw)<6: return jsonify({'error':'Password min 6 chars'}),400
     with get_db() as db:
         if db.execute("SELECT id FROM user WHERE email=?",(email,)).fetchone():
@@ -227,13 +238,25 @@ def register():
     session['user_id']=new_uid
     return jsonify({'id':new_uid,'name':name,'email':email,'phone':phone})
 
+_login_attempts = {}
 @app.route('/api/login',methods=['POST'])
 def login():
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+    now_ts = time.time()
+    attempts = _login_attempts.get(ip, [])
+    attempts = [t for t in attempts if now_ts - t < 900]  # 15 min window
+    if len(attempts) >= 10:
+        return jsonify({'error':'Too many login attempts. Try again in 15 minutes.'}), 429
     d=request.json or {}
     with get_db() as db:
         u=r2d(db.execute("SELECT * FROM user WHERE email=?",(d.get('email','').lower(),)).fetchone())
-    if not u or not check_password_hash(u['password'],d.get('password','')): return jsonify({'error':'Invalid credentials'}),401
+    if not u or not check_password_hash(u['password'],d.get('password','')):
+        attempts.append(now_ts)
+        _login_attempts[ip] = attempts
+        return jsonify({'error':'Invalid credentials'}),401
+    _login_attempts.pop(ip, None)
     session['user_id']=u['id']
+    session.permanent = True
     return jsonify({'id':u['id'],'name':u['name'],'email':u['email'],'currency':u['currency']})
 
 @app.route('/api/logout',methods=['POST'])
@@ -313,6 +336,82 @@ def add_member(gid):
         db.execute("INSERT INTO group_member(group_id,user_id) VALUES(?,?)",(gid,u2['id'])); db.commit()
     return jsonify({'id':u2['id'],'name':u2['name'],'email':u2['email'],'phone':u2.get('phone')})
 
+# ── GROUP MANAGEMENT ──────────────────────────────────────────
+@app.route('/api/groups/<int:gid>',methods=['PUT'])
+@login_required
+def edit_group(gid):
+    with get_db() as db:
+        g=db.execute("SELECT created_by FROM grp WHERE id=?",(gid,)).fetchone()
+        if not g: return jsonify({'error':'Not found'}),404
+        if g['created_by']!=uid(): return jsonify({'error':'Only creator can edit group'}),403
+        d=request.json or {}
+        name=(d.get('name') or '').strip()
+        if not name: return jsonify({'error':'Name required'}),400
+        db.execute("UPDATE grp SET name=?,description=? WHERE id=?",(name,d.get('description','').strip(),gid))
+        db.commit()
+    return jsonify({'ok':True,'name':name})
+
+@app.route('/api/groups/<int:gid>',methods=['DELETE'])
+@login_required
+def delete_group(gid):
+    with get_db() as db:
+        g=db.execute("SELECT created_by FROM grp WHERE id=?",(gid,)).fetchone()
+        if not g: return jsonify({'error':'Not found'}),404
+        if g['created_by']!=uid(): return jsonify({'error':'Only creator can delete group'}),403
+        db.execute("DELETE FROM grp WHERE id=?",(gid,)); db.commit()
+    return jsonify({'ok':True})
+
+@app.route('/api/groups/<int:gid>/members/<int:mid>',methods=['DELETE'])
+@login_required
+def remove_member(gid,mid):
+    with get_db() as db:
+        g=db.execute("SELECT created_by FROM grp WHERE id=?",(gid,)).fetchone()
+        if not g: return jsonify({'error':'Not found'}),404
+        if g['created_by']!=uid() and mid!=uid(): return jsonify({'error':'Only creator can remove members'}),403
+        if mid==g['created_by']: return jsonify({'error':'Cannot remove group creator'}),400
+        db.execute("DELETE FROM group_member WHERE group_id=? AND user_id=?",(gid,mid)); db.commit()
+    return jsonify({'ok':True})
+
+@app.route('/api/groups/<int:gid>/leave',methods=['POST'])
+@login_required
+def leave_group(gid):
+    with get_db() as db:
+        g=db.execute("SELECT created_by FROM grp WHERE id=?",(gid,)).fetchone()
+        if not g: return jsonify({'error':'Not found'}),404
+        if g['created_by']==uid(): return jsonify({'error':'Creator cannot leave — delete the group instead'}),400
+        db.execute("DELETE FROM group_member WHERE group_id=? AND user_id=?",(gid,uid())); db.commit()
+    return jsonify({'ok':True})
+
+# ── USER PROFILE ───────────────────────────────────────────────
+@app.route('/api/me',methods=['PUT'])
+@login_required
+def update_profile():
+    d=request.json or {}
+    name=(d.get('name') or '').strip()
+    phone=normalize_phone(d.get('phone',''))
+    currency=d.get('currency','INR')
+    if not name: return jsonify({'error':'Name required'}),400
+    with get_db() as db:
+        if phone:
+            clash=db.execute("SELECT id FROM user WHERE phone=? AND id!=?",(phone,uid())).fetchone()
+            if clash: return jsonify({'error':'Phone already used by another account'}),400
+        db.execute("UPDATE user SET name=?,phone=?,currency=? WHERE id=?",(name,phone,currency,uid()))
+        db.commit()
+    return jsonify({'ok':True,'name':name})
+
+@app.route('/api/me/password',methods=['PUT'])
+@login_required
+def change_password():
+    d=request.json or {}
+    old_pw=d.get('old_password',''); new_pw=d.get('new_password','')
+    if len(new_pw)<6: return jsonify({'error':'New password must be at least 6 characters'}),400
+    with get_db() as db:
+        u=r2d(db.execute("SELECT * FROM user WHERE id=?",(uid(),)).fetchone())
+        if not check_password_hash(u['password'],old_pw): return jsonify({'error':'Current password is incorrect'}),401
+        db.execute("UPDATE user SET password=? WHERE id=?",(generate_password_hash(new_pw),uid()))
+        db.commit()
+    return jsonify({'ok':True})
+
 # ── EXPENSES ──────────────────────────────────────────────────
 @app.route('/api/groups/<int:gid>/expenses',methods=['POST'])
 @login_required
@@ -323,6 +422,8 @@ def add_expense(gid):
             return jsonify({'error':'Not a member'}),403
         amt=float(d.get('amount',0)); title=(d.get('title') or '').strip()
         if not title or amt<=0: return jsonify({'error':'Title and positive amount required'}),400
+        if amt>10_000_000: return jsonify({'error':'Amount too large'}),400
+        if len(title)>200: return jsonify({'error':'Title too long'}),400
         payer=int(d.get('payer_id',uid())); dval=d.get('date') or now()
         split_type=d.get('split_type','equal')
         db.execute("INSERT INTO expense(group_id,payer_id,title,amount,currency,category,notes,split_type,date) VALUES(?,?,?,?,?,?,?,?,?)",
@@ -373,6 +474,29 @@ def delete_expense(eid):
         if e['payer_id']!=uid(): return jsonify({'error':'Only payer can delete'}),403
         db.execute("DELETE FROM expense WHERE id=?",(eid,)); db.commit()
     return jsonify({'ok':True})
+
+@app.route('/api/expenses/<int:eid>',methods=['PUT'])
+@login_required
+def edit_expense(eid):
+    d=request.json or {}
+    with get_db() as db:
+        e=r2d(db.execute("SELECT * FROM expense WHERE id=?",(eid,)).fetchone())
+        if not e: return jsonify({'error':'Not found'}),404
+        if e['payer_id']!=uid(): return jsonify({'error':'Only payer can edit'}),403
+        title=(d.get('title') or '').strip()
+        amt=float(d.get('amount',e['amount']))
+        if not title or amt<=0: return jsonify({'error':'Title and positive amount required'}),400
+        db.execute("UPDATE expense SET title=?,amount=?,currency=?,category=?,notes=?,date=? WHERE id=?",
+            (title,amt,d.get('currency',e['currency']),d.get('category',e['category']),
+             d.get('notes',e['notes']),d.get('date',e['date']),eid))
+        # Recalculate equal splits if amount changed and split_type is equal
+        if e['split_type']=='equal' and amt!=e['amount']:
+            mids=[r['user_id'] for r in db.execute("SELECT user_id FROM split_detail WHERE expense_id=?",(eid,)).fetchall()]
+            if mids:
+                sh=round(amt/len(mids),2)
+                for m in mids: db.execute("UPDATE split_detail SET share=? WHERE expense_id=? AND user_id=?",(sh,eid,m))
+        db.commit()
+    return jsonify({'ok':True,'title':title,'amount':amt})
 
 @app.route('/api/expenses/<int:eid>/settle',methods=['POST'])
 @login_required
@@ -543,26 +667,6 @@ def stats():
             if b>0: om+=b
             else: ie+=abs(b)
     return jsonify({'total_paid':round(tp,2),'my_share':round(ms,2),'owed_to_me':round(om,2),'i_owe':round(ie,2),'categories':cats,'group_count':len(gids)})
-
-@app.route('/api/seed',methods=['POST'])
-def seed():
-    with get_db() as db:
-        if db.execute("SELECT COUNT(*) c FROM user").fetchone()['c']>0: return jsonify({'msg':'Already seeded'})
-        pw=generate_password_hash('demo123'); uids=[]
-        for name,email,phone in [('Amaya K','amaya@demo.com','+919876543210'),('Fathima Fidha','fathima@demo.com','+919876543211'),('Nandana Kishor','nandanak@demo.com','+919876543212'),('Nandana KM','nandanakm@demo.com','+919876543213')]:
-            db.execute("INSERT INTO user(name,email,phone,password,currency) VALUES(?,?,?,?,'INR')",(name,email,phone,pw))
-            uids.append(db.execute("SELECT last_insert_rowid()").fetchone()[0])
-        db.execute("INSERT INTO grp(name,description,created_by) VALUES('College Trip 🎒','Munnar trip expenses',?)",(uids[0],))
-        gid=db.execute("SELECT last_insert_rowid()").fetchone()[0]
-        for u2 in uids: db.execute("INSERT INTO group_member(group_id,user_id) VALUES(?,?)",(gid,u2))
-        for title,amt,cat,payer in [('Hotel Stay',2400,'Travel',uids[0]),('Dinner Day 1',960,'Food',uids[1]),('Bus Tickets',480,'Travel',uids[2]),('Lunch Day 2',640,'Food',uids[3]),('Sightseeing',360,'Activities',uids[0])]:
-            db.execute("INSERT INTO expense(group_id,payer_id,title,amount,category,currency) VALUES(?,?,?,?,?,'INR')",(gid,payer,title,amt,cat))
-            eid=db.execute("SELECT last_insert_rowid()").fetchone()[0]
-            for u2 in uids: db.execute("INSERT INTO split_detail(expense_id,user_id,share) VALUES(?,?,?)",(eid,u2,round(amt/4,2)))
-        for u2,pt,lbl,det,dflt in [(uids[0],'upi','GPay','amaya@okicici',1),(uids[0],'bank','SBI Savings','ACC:1234567890',0),(uids[1],'upi','PhonePe','fathima@ybl',1),(uids[2],'upi','GPay','nandana@okaxis',1),(uids[3],'cash','Cash','In person',1)]:
-            db.execute("INSERT INTO payment_method(user_id,type,label,details,is_default) VALUES(?,?,?,?,?)",(u2,pt,lbl,det,dflt))
-        db.commit()
-    return jsonify({'msg':'Seeded','demo_email':'amaya@demo.com','demo_password':'demo123'})
 
 # ── INIT & RUN ────────────────────────────────────────────────
 init_db()

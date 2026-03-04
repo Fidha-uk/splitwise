@@ -445,6 +445,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--navy); color:var(--whi
         <div class="user-name" id="sidebar-name">Loading…</div>
         <div class="user-email" id="sidebar-email">…</div>
       </div>
+      <button class="logout-btn" onclick="openEditProfile()" title="Edit profile" style="margin-right:4px">✏️</button>
       <button class="logout-btn" onclick="doLogout()" title="Sign out">⏏</button>
     </div>
   </div>
@@ -514,6 +515,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--navy); color:var(--whi
         </div>
       </div>
       <div style="display:flex;gap:10px">
+        <button class="btn btn-outline btn-sm" onclick="openEditGroupModal()">✏️ Edit</button>
         <button class="btn btn-outline btn-sm" onclick="openModal('add-member-modal')">+ Member</button>
         <button class="btn btn-primary" onclick="openAddExpenseForGroup()">+ Expense</button>
       </div>
@@ -656,6 +658,90 @@ body { font-family:'DM Sans',sans-serif; background:var(--navy); color:var(--whi
 </main>
 
 <!-- ────────────────── MODALS ────────────────── -->
+
+<!-- EDIT GROUP -->
+<div class="modal-backdrop" id="edit-group-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Group</div>
+      <button class="modal-close" onclick="closeModal('edit-group-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Group Name *</label><input type="text" id="eg-name" placeholder="e.g. Thailand Trip"></div>
+      <div class="form-group"><label>Description</label><input type="text" id="eg-desc" placeholder="Optional description"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="saveEditGroup()">Save Changes</button>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <button class="btn btn-danger" style="width:100%" onclick="confirmDeleteGroup()">🗑 Delete This Group</button>
+        <div style="font-size:.75rem;color:var(--gray2);margin-top:6px;text-align:center">Deletes all expenses and data. Cannot be undone.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT EXPENSE -->
+<div class="modal-backdrop" id="edit-expense-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Expense</div>
+      <button class="modal-close" onclick="closeModal('edit-expense-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ee-id">
+      <div class="form-row">
+        <div class="form-group form-full"><label>Title *</label><input type="text" id="ee-title" placeholder="e.g. Dinner"></div>
+        <div class="form-group"><label>Amount *</label><input type="number" id="ee-amount" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="form-group">
+          <label>Currency</label>
+          <select id="ee-currency">
+            <option value="INR">₹ INR</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option>
+            <option value="GBP">£ GBP</option><option value="JPY">¥ JPY</option><option value="AED">د.إ AED</option>
+            <option value="SGD">S$ SGD</option><option value="AUD">A$ AUD</option><option value="CAD">C$ CAD</option>
+            <option value="CHF">Fr CHF</option><option value="MYR">RM MYR</option><option value="THB">฿ THB</option>
+            <option value="SAR">﷼ SAR</option><option value="KRW">₩ KRW</option><option value="BRL">R$ BRL</option>
+          </select>
+        </div>
+        <div class="form-group form-full"><label>Date</label><input type="date" id="ee-date"></div>
+      </div>
+      <div class="form-group"><label>Category</label><div class="category-grid" id="ee-cat-grid"></div></div>
+      <div class="form-group"><label>Notes</label><textarea id="ee-notes" rows="2" placeholder="Optional notes…"></textarea></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveEditExpense()">Save Changes</button>
+        <button class="btn btn-danger" style="flex:1" onclick="confirmDeleteExpense()">🗑 Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT PROFILE -->
+<div class="modal-backdrop" id="edit-profile-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Profile</div>
+      <button class="modal-close" onclick="closeModal('edit-profile-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Name *</label><input type="text" id="ep-name" placeholder="Your name"></div>
+      <div class="form-group"><label>Phone</label><input type="text" id="ep-phone" placeholder="+91 98765 43210"></div>
+      <div class="form-group">
+        <label>Default Currency</label>
+        <select id="ep-currency">
+          <option value="INR">₹ INR</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option>
+          <option value="GBP">£ GBP</option><option value="JPY">¥ JPY</option><option value="AED">د.إ AED</option>
+          <option value="SGD">S$ SGD</option><option value="AUD">A$ AUD</option><option value="CAD">C$ CAD</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="saveProfile()">Save Profile</button>
+      <details style="margin-top:8px">
+        <summary style="font-size:.85rem;color:var(--gray2);cursor:pointer;padding:8px 0">🔒 Change Password</summary>
+        <div style="margin-top:10px">
+          <div class="form-group"><label>Current Password</label><input type="password" id="ep-old-pw" placeholder="Current password"></div>
+          <div class="form-group"><label>New Password</label><input type="password" id="ep-new-pw" placeholder="Min 6 characters"></div>
+          <button class="btn btn-outline" style="width:100%" onclick="savePassword()">Update Password</button>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
 
 <!-- CREATE GROUP -->
 <div class="modal-backdrop" id="create-group-modal">
@@ -1161,15 +1247,19 @@ function renderGroupsGrid() {
 function expenseItemHTML(e, showGroup=false) {
   const cat = CATEGORIES.find(c=>c.id===e.category) || CATEGORIES.find(c=>c.id==='General');
   const myShare = e.splits?.find(s=>s.user_id===me?.id)?.share || 0;
+  const canEdit = e.payer_id === me?.id;
   return `<div class="expense-item">
     <div class="expense-cat-icon" style="background:${CAT_COLORS[e.category]||CAT_COLORS.General}">${cat.icon}</div>
     <div class="expense-info">
       <div class="expense-title">${e.title}</div>
       <div class="expense-meta">${showGroup?`${e.group_name} · `:''}<span>Paid by ${e.payer_name||'?'}</span> · ${fmtDate(e.date)}</div>
     </div>
-    <div>
-      <div class="expense-amount">${fmt(e.amount, e.currency||'INR')}</div>
-      <div class="expense-share">Your share: ${fmt(myShare, e.currency||'INR')}</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div>
+        <div class="expense-amount">${fmt(e.amount, e.currency||'INR')}</div>
+        <div class="expense-share">Your share: ${fmt(myShare, e.currency||'INR')}</div>
+      </div>
+      ${canEdit ? `<button class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:.75rem" onclick="openEditExpense(${e.id})">✏️</button>` : ''}
     </div>
   </div>`;
 }
@@ -1220,17 +1310,31 @@ function renderGroupSettle() {
 function renderGroupMembers() {
   const el = document.getElementById('gd-members-list');
   const members = currentGroupData?.members || [];
-  el.innerHTML = members.map(m => `
+  const isCreator = currentGroupData?.created_by === me?.id;
+  el.innerHTML = members.map(m => {
+    const isMe = m.id === me?.id;
+    const isGroupCreator = m.id === currentGroupData?.created_by;
+    let actions = '';
+    if (isGroupCreator) {
+      actions = `<span style="font-size:.72rem;color:var(--gold);font-weight:600">👑 Creator</span>`;
+    } else if (isCreator && !isMe) {
+      actions = `<button class="btn btn-danger btn-sm" onclick="removeMember(${m.id},'${m.name}')">Remove</button>`;
+    } else if (isMe && !isGroupCreator) {
+      actions = `<button class="btn btn-outline btn-sm" onclick="leaveGroup()">Leave Group</button>`;
+    }
+    return `
     <div class="expense-item">
       <div class="s-avatar" style="width:40px;height:40px;border-radius:12px;font-size:.9rem">${initials(m.name)}</div>
       <div class="expense-info">
-        <div class="expense-title">${m.name} ${m.id===me?.id?'<span class="badge badge-green">You</span>':''}</div>
+        <div class="expense-title">${m.name} ${isMe?'<span class="badge badge-green">You</span>':''}</div>
         <div class="expense-meta">
           ${m.email}
           ${m.phone ? `<span style="margin-left:10px;color:var(--mint)">📱 ${m.phone}</span>` : ''}
         </div>
       </div>
-    </div>`).join('');
+      <div style="margin-left:auto;flex-shrink:0">${actions}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderCategoryChart(elId, cats, big=false) {
@@ -1596,6 +1700,168 @@ function handleOcrDrop(e) {
   document.getElementById('ocr-drop').classList.remove('dragover');
   const file = e.dataTransfer.files[0];
   if (file) runOcr(file);
+}
+
+// ─── EDIT GROUP ───────────────────────────────────────────────
+function openEditGroupModal() {
+  if (!currentGroupData) return;
+  document.getElementById('eg-name').value = currentGroupData.name || '';
+  document.getElementById('eg-desc').value = currentGroupData.description || '';
+  openModal('edit-group-modal');
+}
+
+async function saveEditGroup() {
+  const name = document.getElementById('eg-name').value.trim();
+  const description = document.getElementById('eg-desc').value.trim();
+  if (!name) { toast('Group name is required','error'); return; }
+  const r = await fetch(`/api/groups/${currentGroupId}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, description})
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  closeModal('edit-group-modal');
+  toast('Group updated!','success');
+  await loadGroups();
+  await loadGroupDetail(currentGroupId);
+}
+
+async function confirmDeleteGroup() {
+  if (!confirm(`Delete "${currentGroupData?.name}"? This will permanently delete all expenses and data. This cannot be undone.`)) return;
+  const r = await fetch(`/api/groups/${currentGroupId}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  closeModal('edit-group-modal');
+  toast('Group deleted','success');
+  await loadGroups();
+  showPage('groups');
+}
+
+// ─── REMOVE / LEAVE MEMBER ────────────────────────────────────
+async function removeMember(userId, userName) {
+  if (!confirm(`Remove ${userName} from this group?`)) return;
+  const r = await fetch(`/api/groups/${currentGroupId}/members/${userId}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  toast(`${userName} removed`,'success');
+  await loadGroupDetail(currentGroupId);
+  await loadGroups();
+}
+
+async function leaveGroup() {
+  if (!confirm(`Leave "${currentGroupData?.name}"? You'll no longer see this group.`)) return;
+  const r = await fetch(`/api/groups/${currentGroupId}/leave`, { method: 'POST' });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  toast('You have left the group','success');
+  await loadGroups();
+  showPage('groups');
+}
+
+// ─── EDIT EXPENSE ─────────────────────────────────────────────
+let _editingExpense = null;
+let _editingExpenseCat = 'General';
+
+function openEditExpense(eid) {
+  const expense = currentGroupData?.expenses?.find(e => e.id === eid);
+  if (!expense) return;
+  _editingExpense = expense;
+  _editingExpenseCat = expense.category || 'General';
+  document.getElementById('ee-id').value = eid;
+  document.getElementById('ee-title').value = expense.title;
+  document.getElementById('ee-amount').value = expense.amount;
+  document.getElementById('ee-currency').value = expense.currency || 'INR';
+  document.getElementById('ee-date').value = (expense.date||'').substring(0,10);
+  document.getElementById('ee-notes').value = expense.notes || '';
+  // Build category grid
+  document.getElementById('ee-cat-grid').innerHTML = CATEGORIES.map(c =>
+    `<div class="cat-pill ${c.id===_editingExpenseCat?'active':''}" onclick="selectEditCat(this,'${c.id}')">${c.icon} ${c.id}</div>`
+  ).join('');
+  openModal('edit-expense-modal');
+}
+
+function selectEditCat(el, cat) {
+  document.querySelectorAll('#ee-cat-grid .cat-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  _editingExpenseCat = cat;
+}
+
+async function saveEditExpense() {
+  const eid = document.getElementById('ee-id').value;
+  const title = document.getElementById('ee-title').value.trim();
+  const amount = parseFloat(document.getElementById('ee-amount').value);
+  const currency = document.getElementById('ee-currency').value;
+  const date = document.getElementById('ee-date').value;
+  const notes = document.getElementById('ee-notes').value;
+  if (!title || !amount || isNaN(amount)) { toast('Title and amount required','error'); return; }
+  const r = await fetch(`/api/expenses/${eid}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({title, amount, currency, date, notes, category: _editingExpenseCat})
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  closeModal('edit-expense-modal');
+  toast('Expense updated!','success');
+  await loadGroupDetail(currentGroupId);
+  await loadStats();
+}
+
+async function confirmDeleteExpense() {
+  const eid = document.getElementById('ee-id').value;
+  const title = _editingExpense?.title || 'this expense';
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  const r = await fetch(`/api/expenses/${eid}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  closeModal('edit-expense-modal');
+  toast('Expense deleted','success');
+  await loadGroupDetail(currentGroupId);
+  await loadStats();
+  await loadGroups();
+}
+
+// ─── EDIT PROFILE ─────────────────────────────────────────────
+function openEditProfile() {
+  document.getElementById('ep-name').value = me?.name || '';
+  document.getElementById('ep-phone').value = me?.phone || '';
+  document.getElementById('ep-currency').value = me?.currency || 'INR';
+  document.getElementById('ep-old-pw').value = '';
+  document.getElementById('ep-new-pw').value = '';
+  openModal('edit-profile-modal');
+}
+
+async function saveProfile() {
+  const name = document.getElementById('ep-name').value.trim();
+  const phone = document.getElementById('ep-phone').value.trim();
+  const currency = document.getElementById('ep-currency').value;
+  if (!name) { toast('Name is required','error'); return; }
+  const r = await fetch('/api/me', {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, phone, currency})
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  me.name = name; me.currency = currency; me.phone = phone;
+  document.getElementById('sidebar-name').textContent = name;
+  document.getElementById('sidebar-avatar').textContent = initials(name);
+  document.getElementById('hello-name').textContent = `Hello, ${name.split(' ')[0]} 👋`;
+  closeModal('edit-profile-modal');
+  toast('Profile updated!','success');
+}
+
+async function savePassword() {
+  const old_password = document.getElementById('ep-old-pw').value;
+  const new_password = document.getElementById('ep-new-pw').value;
+  if (!old_password || !new_password) { toast('Both fields required','error'); return; }
+  const r = await fetch('/api/me/password', {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({old_password, new_password})
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  document.getElementById('ep-old-pw').value = '';
+  document.getElementById('ep-new-pw').value = '';
+  toast('Password changed!','success');
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────
