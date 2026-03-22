@@ -1841,13 +1841,13 @@ async function runOcr(file) {
       document.getElementById('ae-title').value = d.title || (meta.label + (d.store_name ? ' — '+d.store_name : ''));
     if (cur) { const sel=document.getElementById('ae-currency'); if([...sel.options].some(o=>o.value===cur)) sel.value=cur; }
     if (d.date) { try{document.getElementById('ae-date').value=d.date;}catch(_){} }
+    var items = d.items||[], taxes = d.taxes||[];
+
     // Store OCR items for By Item split
     _ocrItems = items || [];
 
     // Auto-set category
     document.querySelectorAll('#cat-grid .cat-pill').forEach(btn=>{if(btn.dataset.cat===meta.cat)btn.click();});
-
-    const items = d.items||[], taxes = d.taxes||[];
     const subtotal = parseFloat(d.subtotal)||0, discount = parseFloat(d.discount)||0;
     const svc = parseFloat(d.service_charge)||0, tip = parseFloat(d.tip)||0;
     const total = parseFloat(d.amount)||0;
