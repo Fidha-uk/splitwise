@@ -9,6 +9,45 @@ from datetime import datetime
 from functools import wraps
 import sqlite3, os, uuid, re, time, hashlib, random
 
+# Auto-detect Tesseract on Windows — set path before anything else
+try:
+    import pytesseract as _pt
+    import subprocess as _sp
+    _tess_paths = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        r"C:\Users\lenovo\AppData\Local\Programs\Tesseract-OCR\tesseract.exe",
+        r"C:\Users\lenovo\AppData\Local\Tesseract-OCR\tesseract.exe",
+    ]
+    for _p in _tess_paths:
+        if os.path.exists(_p):
+            _pt.pytesseract.tesseract_cmd = _p
+            os.environ['TESSDATA_PREFIX'] = os.path.dirname(_p)
+            break
+    else:
+        # Try to find via where command on Windows
+        try:
+            _res = _sp.run(['where', 'tesseract'], capture_output=True, text=True)
+            if _res.returncode == 0 and _res.stdout.strip():
+                _pt.pytesseract.tesseract_cmd = _res.stdout.strip().splitlines()[0]
+        except Exception:
+            pass
+except ImportError:
+    pass
+
+# Load .env file if present
+try:
+    from pathlib import Path
+    _env = Path(__file__).parent / '.env'
+    if _env.exists():
+        for _line in _env.read_text().splitlines():
+            _line = _line.strip()
+            if _line and not _line.startswith('#') and '=' in _line:
+                _k, _v = _line.split('=', 1)
+                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
+except Exception:
+    pass
+
 # ── CONFIG ────────────────────────────────────────────────────
 class Config:
     BASE_DIR           = os.path.abspath(os.path.dirname(__file__))
@@ -34,6 +73,7 @@ CREATE TABLE IF NOT EXISTS user(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, phone TEXT UNIQUE,
     password TEXT NOT NULL, currency TEXT DEFAULT 'INR',
+    is_banned INTEGER DEFAULT 0,
     created_at TEXT DEFAULT(datetime('now')));
 CREATE TABLE IF NOT EXISTS grp(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,6 +123,13 @@ CREATE INDEX IF NOT EXISTS idx_gm_u  ON group_member(user_id);
 CREATE INDEX IF NOT EXISTS idx_e_g   ON expense(group_id);
 CREATE INDEX IF NOT EXISTS idx_p_g   ON payment(group_id);
 CREATE INDEX IF NOT EXISTS idx_p_to  ON payment(to_user_id);
+CREATE TABLE IF NOT EXISTS password_reset(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    otp TEXT NOT NULL,
+    expires_at REAL NOT NULL,
+    used INTEGER DEFAULT 0,
+    FOREIGN KEY(user_id) REFERENCES user(id) ON DELETE CASCADE);
 """
 
 def get_db():
@@ -138,54 +185,185 @@ ALLOWED={'png','jpg','jpeg','gif','webp'}
 def ok_file(fn): return '.'+fn.rsplit('.',1)[-1].lower() in ['.'+x for x in ALLOWED]
 
 def ocr_extract(path):
-    # Try Anthropic Vision API first (best results)
+    """OCR using easyocr — free, no Tesseract needed, works on Windows."""
     try:
-        import anthropic, base64
-        api_key = os.environ.get('ANTHROPIC_API_KEY','')
-        if api_key:
-            with open(path,'rb') as f: img_data = base64.b64encode(f.read()).decode()
-            ext = path.rsplit('.',1)[-1].lower()
-            media_map = {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','gif':'image/gif','webp':'image/webp'}
-            media_type = media_map.get(ext,'image/jpeg')
-            client = anthropic.Anthropic(api_key=api_key)
-            msg = client.messages.create(
-                model='claude-haiku-4-5-20251001', max_tokens=512,
-                messages=[{'role':'user','content':[
-                    {'type':'image','source':{'type':'base64','media_type':media_type,'data':img_data}},
-                    {'type':'text','text':'This is a receipt or bill image. Extract: 1) The TOTAL amount (the final amount to pay, after tax/tip). 2) A short title describing what the receipt is for (e.g. "Restaurant dinner", "Grocery store"). 3) The currency symbol or code if visible. Respond ONLY in JSON: {"amount": 123.45, "title": "...", "currency": "INR", "raw_text": "brief summary of key items"}. If you cannot find a total, set amount to null.'}
-                ]}])
-            import json as _json
-            raw = msg.content[0].text.strip()
-            raw = re.sub(r'```json|```','',raw).strip()
-            parsed = _json.loads(raw)
-            return {'text': parsed.get('raw_text',''), 'amount': parsed.get('amount'), 'title': parsed.get('title',''), 'currency': parsed.get('currency',''), 'source':'vision'}
-    except Exception as ve:
-        pass  # Fall through to pytesseract
+        import easyocr
+        import json as _json
 
-    # Fallback: pytesseract
-    try:
-        import pytesseract
-        from PIL import Image, ImageEnhance, ImageFilter
-        img = Image.open(path)
-        # Pre-process: enhance contrast and sharpen
-        img = img.convert('L')  # grayscale
-        img = ImageEnhance.Contrast(img).enhance(2.0)
-        img = img.filter(ImageFilter.SHARPEN)
-        text = pytesseract.image_to_string(img, config='--psm 6')
-        # Better amount extraction: look for totals first
-        m = re.findall(r'(?:grand\s*total|total\s*amount|net\s*total|total|amount\s*due|amount\s*payable|rs\.?|₹|inr|usd|\$|€|£)[\s:₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)',text,re.I)
-        if not m: m = re.findall(r'\b([0-9]{2,6}(?:\.[0-9]{1,2})?)\b',text)
-        amt = None
-        if m:
-            # Try to pick the largest plausible total (last 'total' match)
-            candidates = []
-            for x in m:
-                try: candidates.append(float(x.replace(',','')))
+        # Init reader (downloads model first time ~100MB, then cached)
+        reader = easyocr.Reader(['en'], gpu=False, verbose=False)
+        results = reader.readtext(path, detail=0, paragraph=False)
+        text = '\n'.join(results)
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+
+        if not lines:
+            return {
+                'source': 'error', 'bill_type': 'other', 'store_name': '', 'title': '',
+                'currency': 'INR', 'date': None, 'items': [], 'subtotal': None, 'taxes': [],
+                'discount': 0, 'service_charge': 0, 'tip': 0, 'amount': None,
+                'payment_method': 'unknown', 'text': '',
+                'error': 'No text found in image', 'setup_hint': 'Try a clearer image'
+            }
+
+        store_name = lines[0] if lines else ''
+
+        # Bill type detection
+        text_lower = text.lower()
+        bill_type = 'other'
+        if any(w in text_lower for w in ['restaurant','cafe','dine','food','swiggy','zomato','biryani','pizza','burger','meals','hotel']):
+            bill_type = 'restaurant'
+        elif any(w in text_lower for w in ['grocery','supermarket','dmart','bigbasket','vegetables','fruits']):
+            bill_type = 'grocery'
+        elif any(w in text_lower for w in ['pharmacy','medical','medicine','chemist','drug','tablet']):
+            bill_type = 'pharmacy'
+        elif any(w in text_lower for w in ['petrol','diesel','fuel','bpcl','hpcl','indian oil']):
+            bill_type = 'fuel'
+        elif any(w in text_lower for w in ['electricity','water bill','utility','bescom','tneb']):
+            bill_type = 'utility'
+        elif any(w in text_lower for w in ['uber','ola','rapido','bus','train','flight','metro','cab']):
+            bill_type = 'transport'
+        elif any(w in text_lower for w in ['mall','shop','fashion','garment','shoes','footwear']):
+            bill_type = 'shopping'
+
+        # Date extraction
+        date_val = None
+        for pat in [r'(\d{4}[-/]\d{2}[-/]\d{2})', r'(\d{2}[-/]\d{2}[-/]\d{4})',
+                    r'(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})']:
+            m = re.search(pat, text, re.I)
+            if m:
+                date_val = m.group(1)
+                break
+
+        # Extract items
+        items = []
+        skip_words = {'total','subtotal','grand','amount','balance','tax','gst','cgst','sgst',
+                      'vat','discount','service','charge','tip','cash','change','due','net',
+                      'bill','invoice','receipt','thank','visit','date','time','table','order',
+                      'no','number','phone','address','gstin','pan','upi','card','paid','payment'}
+        item_pat = re.compile(
+            r'^(.+?)\s+(?:x\s*\d+\s+)?(?:Rs\.?\s*|₹\s*|INR\s*)?(\d+(?:,\d+)*(?:\.\d{1,2})?)\s*$', re.I)
+        for line in lines:
+            m = item_pat.match(line)
+            if m:
+                name = m.group(1).strip()
+                if name.lower() in skip_words or len(name) < 2:
+                    continue
+                try:
+                    price = float(m.group(2).replace(',',''))
+                    if 0.5 < price < 100000:
+                        items.append({'name': name, 'qty': 1, 'unit_price': price, 'total': price})
                 except: pass
-            if candidates: amt = max(candidates) if len(candidates)<=3 else candidates[-1]
-        return {'text':text,'amount':amt,'source':'tesseract'}
+
+        # Extract taxes
+        taxes = []
+        tax_pat = re.compile(
+            r'((?:cgst|sgst|igst|gst|vat|service\s*tax)[^\n]*?(?:\d+(?:\.\d+)?\s*%)?)'
+            r'[\s:₹Rs.]*([0-9,]+(?:\.[0-9]{1,2})?)', re.I)
+        for m in tax_pat.finditer(text):
+            label = m.group(1).strip()[:30]
+            try:
+                amt = float(m.group(2).replace(',',''))
+                if 0 < amt < 10000:
+                    rate_m = re.search(r'(\d+(?:\.\d+)?)\s*%', label)
+                    rate = float(rate_m.group(1)) if rate_m else None
+                    taxes.append({'label': label, 'rate': rate, 'amount': amt})
+            except: pass
+
+        # Discount
+        discount = 0.0
+        disc_m = re.search(r'(?:discount|offer|savings?)[\s:₹Rs.]*([0-9,]+(?:\.[0-9]{1,2})?)', text, re.I)
+        if disc_m:
+            try: discount = float(disc_m.group(1).replace(',',''))
+            except: pass
+
+        # Total — priority order
+        total = None
+        for pat in [
+            r'(?:grand\s*total|net\s*(?:amount|payable|total)|amount\s*(?:due|payable)|total\s*amount|total\s*payable)[\s:₹Rs.]*([0-9,]+(?:\.[0-9]{1,2})?)',
+            r'(?:^|\n)\s*total[\s:₹Rs.]*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:\n|$)',
+        ]:
+            m = re.search(pat, text, re.I | re.M)
+            if m:
+                try: total = float(m.group(1).replace(',','')); break
+                except: pass
+
+        if not total:
+            rs_vals = re.findall(r'(?:₹|Rs\.?|INR)\s*([0-9,]+(?:\.[0-9]{1,2})?)', text, re.I)
+            candidates = []
+            for x in rs_vals:
+                try:
+                    v = float(x.replace(',',''))
+                    if 1 < v < 1000000: candidates.append(v)
+                except: pass
+            if candidates: total = max(candidates)
+
+        if not total:
+            nums = re.findall(r'\b([0-9]{2,6}(?:\.[0-9]{1,2})?)\b', text)
+            candidates = []
+            for x in nums:
+                try:
+                    v = float(x.replace(',',''))
+                    if 10 < v < 500000: candidates.append(v)
+                except: pass
+            if candidates: total = candidates[-1]
+
+        # Subtotal
+        tax_total = sum(t['amount'] for t in taxes)
+        subtotal = None
+        sub_m = re.search(r'(?:sub\s*total|subtotal)[\s:₹Rs.]*([0-9,]+(?:\.[0-9]{1,2})?)', text, re.I)
+        if sub_m:
+            try: subtotal = float(sub_m.group(1).replace(',',''))
+            except: pass
+        if not subtotal and total and tax_total:
+            subtotal = round(total - tax_total + discount, 2)
+
+        title = store_name or bill_type.title() + ' bill'
+
+        return {
+            'source': 'easyocr',
+            'bill_type': bill_type, 'store_name': store_name, 'title': title,
+            'currency': 'INR', 'date': date_val, 'items': items,
+            'subtotal': subtotal, 'taxes': taxes, 'discount': discount,
+            'service_charge': 0, 'tip': 0, 'amount': total,
+            'payment_method': 'unknown', 'text': text[:300]
+        }
+
+    except ImportError:
+        # Fallback to pytesseract if easyocr not installed
+        try:
+            import pytesseract
+            from PIL import Image, ImageEnhance, ImageFilter
+            pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+            img = Image.open(path).convert('L')
+            img = ImageEnhance.Contrast(img).enhance(2.5)
+            img = ImageEnhance.Sharpness(img).enhance(2.0)
+            text = pytesseract.image_to_string(img, config='--psm 6')
+            nums = re.findall(r'\b([0-9]{2,6}(?:\.[0-9]{1,2})?)\b', text)
+            candidates = [float(x.replace(',','')) for x in nums if 10 < float(x.replace(',','')) < 500000]
+            total = candidates[-1] if candidates else None
+            return {
+                'source': 'tesseract', 'bill_type': 'other', 'store_name': '', 'title': '',
+                'currency': 'INR', 'date': None, 'items': [], 'subtotal': None, 'taxes': [],
+                'discount': 0, 'service_charge': 0, 'tip': 0, 'amount': total,
+                'payment_method': 'unknown', 'text': text[:300]
+            }
+        except Exception as e:
+            return {
+                'source': 'error', 'bill_type': 'other', 'store_name': '', 'title': '',
+                'currency': 'INR', 'date': None, 'items': [], 'subtotal': None, 'taxes': [],
+                'discount': 0, 'service_charge': 0, 'tip': 0, 'amount': None,
+                'payment_method': 'unknown', 'text': '',
+                'error': str(e), 'setup_hint': 'Run: .venv\\Scripts\\pip install easyocr'
+            }
     except Exception as e:
-        return {'text':'','amount':None,'error':str(e),'source':'error'}
+        return {
+            'source': 'error', 'bill_type': 'other', 'store_name': '', 'title': '',
+            'currency': 'INR', 'date': None, 'items': [], 'subtotal': None, 'taxes': [],
+            'discount': 0, 'service_charge': 0, 'tip': 0, 'amount': None,
+            'payment_method': 'unknown', 'text': '',
+            'error': str(e), 'setup_hint': 'Run: .venv\\Scripts\\pip install easyocr'
+        }
+
 
 def login_required(f):
     @wraps(f)
@@ -249,15 +427,64 @@ def login():
         return jsonify({'error':'Too many login attempts. Try again in 15 minutes.'}), 429
     d=request.json or {}
     with get_db() as db:
-        u=r2d(db.execute("SELECT * FROM user WHERE email=?",(d.get('email','').lower(),)).fetchone())
+        if d.get('phone'):
+            pn = normalize_phone(d.get('phone',''))
+            u = r2d(db.execute("SELECT * FROM user WHERE phone=?",(pn,)).fetchone())
+        else:
+            u = r2d(db.execute("SELECT * FROM user WHERE email=?",(d.get('email','').lower(),)).fetchone())
     if not u or not check_password_hash(u['password'],d.get('password','')):
         attempts.append(now_ts)
         _login_attempts[ip] = attempts
-        return jsonify({'error':'Invalid credentials'}),401
+        return jsonify({'error':'Invalid email/phone or password'}),401
+    if u.get('is_banned'):
+        return jsonify({'error':'Your account has been suspended. Please contact support.'}),403
     _login_attempts.pop(ip, None)
     session['user_id']=u['id']
     session.permanent = True
     return jsonify({'id':u['id'],'name':u['name'],'email':u['email'],'currency':u['currency']})
+
+@app.route('/api/forgot-password', methods=['POST'])
+def forgot_password():
+    d = request.json or {}
+    identifier = (d.get('identifier') or '').strip()
+    if not identifier: return jsonify({'error': 'Email or phone required'}), 400
+    with get_db() as db:
+        if '@' in identifier:
+            u = r2d(db.execute("SELECT id,name,email FROM user WHERE email=?", (identifier.lower(),)).fetchone())
+        else:
+            pn = normalize_phone(identifier)
+            u = r2d(db.execute("SELECT id,name,email FROM user WHERE phone=?", (pn,)).fetchone())
+        if not u: return jsonify({'error': 'No account found with that email/phone'}), 404
+        otp = str(random.randint(100000, 999999))
+        expires = time.time() + 600  # 10 min
+        db.execute("UPDATE password_reset SET used=1 WHERE user_id=?", (u['id'],))
+        db.execute("INSERT INTO password_reset(user_id,otp,expires_at) VALUES(?,?,?)", (u['id'], otp, expires))
+    # In production: send OTP via email/SMS. For demo, return it directly.
+    return jsonify({'ok': True, 'otp': otp, 'name': u['name'], 'demo': True})
+
+@app.route('/api/reset-password', methods=['POST'])
+def reset_password():
+    d = request.json or {}
+    identifier = (d.get('identifier') or '').strip()
+    otp = (d.get('otp') or '').strip()
+    new_pw = d.get('password', '')
+    if not identifier or not otp or not new_pw: return jsonify({'error': 'All fields required'}), 400
+    if len(new_pw) < 6: return jsonify({'error': 'Password min 6 characters'}), 400
+    with get_db() as db:
+        if '@' in identifier:
+            u = r2d(db.execute("SELECT id FROM user WHERE email=?", (identifier.lower(),)).fetchone())
+        else:
+            pn = normalize_phone(identifier)
+            u = r2d(db.execute("SELECT id FROM user WHERE phone=?", (pn,)).fetchone())
+        if not u: return jsonify({'error': 'Account not found'}), 404
+        row = r2d(db.execute(
+            "SELECT * FROM password_reset WHERE user_id=? AND otp=? AND used=0 ORDER BY id DESC LIMIT 1",
+            (u['id'], otp)).fetchone())
+        if not row: return jsonify({'error': 'Invalid OTP'}), 400
+        if time.time() > row['expires_at']: return jsonify({'error': 'OTP expired. Please request a new one.'}), 400
+        db.execute("UPDATE user SET password=? WHERE id=?", (generate_password_hash(new_pw), u['id']))
+        db.execute("UPDATE password_reset SET used=1 WHERE id=?", (row['id'],))
+    return jsonify({'ok': True})
 
 @app.route('/api/logout',methods=['POST'])
 def logout(): session.clear(); return jsonify({'ok':True})
@@ -278,6 +505,10 @@ def get_groups():
         out=[]
         for gid in gids:
             g=r2d(db.execute("SELECT * FROM grp WHERE id=?",(gid,)).fetchone())
+            if g is None:
+                # Orphaned membership — group was deleted, clean it up
+                db.execute("DELETE FROM group_member WHERE group_id=? AND user_id=?",(gid,uid()))
+                continue
             mc=db.execute("SELECT COUNT(*) c FROM group_member WHERE group_id=?",(gid,)).fetchone()['c']
             ec=db.execute("SELECT COUNT(*) c FROM expense WHERE group_id=?",(gid,)).fetchone()['c']
             tot=db.execute("SELECT SUM(amount) s FROM expense WHERE group_id=?",(gid,)).fetchone()['s'] or 0
@@ -667,6 +898,226 @@ def stats():
             if b>0: om+=b
             else: ie+=abs(b)
     return jsonify({'total_paid':round(tp,2),'my_share':round(ms,2),'owed_to_me':round(om,2),'i_owe':round(ie,2),'categories':cats,'group_count':len(gids)})
+
+
+
+# ══════════════════════════════════════════════════════════════
+# ── ADMIN PANEL ───────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')  # Change in production
+
+def admin_required(f):
+    @wraps(f)
+    def dec(*a, **kw):
+        if not session.get('is_admin'):
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*a, **kw)
+    return dec
+
+@app.route('/admin')
+def admin_page():
+    if not session.get('is_admin'):
+        return redirect('/admin/login')
+    return render_template('admin.html')
+
+@app.route('/admin/login')
+def admin_login_page():
+    if session.get('is_admin'):
+        return redirect('/admin')
+    return render_template('admin_login.html')
+
+@app.route('/api/admin/login', methods=['POST'])
+def admin_login():
+    d = request.json or {}
+    if d.get('password') == ADMIN_PASSWORD:
+        session['is_admin'] = True
+        session.permanent = True
+        return jsonify({'ok': True})
+    return jsonify({'error': 'Invalid admin password'}), 401
+
+@app.route('/api/admin/logout', methods=['POST'])
+def admin_logout():
+    session.pop('is_admin', None)
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/stats')
+@admin_required
+def admin_stats():
+    with get_db() as db:
+        users      = db.execute("SELECT COUNT(*) c FROM user").fetchone()['c']
+        groups     = db.execute("SELECT COUNT(*) c FROM grp").fetchone()['c']
+        expenses   = db.execute("SELECT COUNT(*) c FROM expense").fetchone()['c']
+        payments   = db.execute("SELECT COUNT(*) c FROM payment").fetchone()['c']
+        total_vol  = db.execute("SELECT COALESCE(SUM(amount),0) s FROM expense").fetchone()['s']
+        new_today  = db.execute("SELECT COUNT(*) c FROM user WHERE DATE(created_at)=DATE('now')").fetchone()['c']
+        new_week   = db.execute("SELECT COUNT(*) c FROM user WHERE created_at >= datetime('now','-7 days')").fetchone()['c']
+        active_grps= db.execute("SELECT COUNT(DISTINCT group_id) c FROM expense WHERE created_at >= datetime('now','-7 days')").fetchone()['c']
+    return jsonify({
+        'users': users, 'groups': groups, 'expenses': expenses,
+        'payments': payments, 'total_volume': round(total_vol, 2),
+        'new_today': new_today, 'new_week': new_week, 'active_groups': active_grps
+    })
+
+@app.route('/api/admin/users')
+@admin_required
+def admin_list_users():
+    page = int(request.args.get('page', 1))
+    per  = int(request.args.get('per', 20))
+    q    = (request.args.get('q') or '').strip()
+    off  = (page - 1) * per
+    with get_db() as db:
+        if q:
+            rows = rs(db.execute(
+                "SELECT u.id,u.name,u.email,u.phone,u.currency,u.created_at,u.is_banned,"
+                "(SELECT COUNT(*) FROM group_member WHERE user_id=u.id) grp_count,"
+                "(SELECT COUNT(*) FROM expense WHERE payer_id=u.id) exp_count,"
+                "(SELECT COALESCE(SUM(amount),0) FROM expense WHERE payer_id=u.id) total_spent "
+                "FROM user u WHERE u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ? "
+                "ORDER BY u.created_at DESC LIMIT ? OFFSET ?",
+                (f'%{q}%', f'%{q}%', f'%{q}%', per, off)).fetchall())
+            total = db.execute("SELECT COUNT(*) c FROM user WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?",
+                               (f'%{q}%',f'%{q}%',f'%{q}%')).fetchone()['c']
+        else:
+            rows = rs(db.execute(
+                "SELECT u.id,u.name,u.email,u.phone,u.currency,u.created_at,u.is_banned,"
+                "(SELECT COUNT(*) FROM group_member WHERE user_id=u.id) grp_count,"
+                "(SELECT COUNT(*) FROM expense WHERE payer_id=u.id) exp_count,"
+                "(SELECT COALESCE(SUM(amount),0) FROM expense WHERE payer_id=u.id) total_spent "
+                "FROM user u ORDER BY u.created_at DESC LIMIT ? OFFSET ?",
+                (per, off)).fetchall())
+            total = db.execute("SELECT COUNT(*) c FROM user").fetchone()['c']
+    return jsonify({'users': rows, 'total': total, 'page': page, 'per': per})
+
+@app.route('/api/admin/users/<int:target_id>')
+@admin_required
+def admin_get_user(target_id):
+    with get_db() as db:
+        u = r2d(db.execute("SELECT id,name,email,phone,currency,created_at,is_banned FROM user WHERE id=?", (target_id,)).fetchone())
+        if not u: return jsonify({'error': 'Not found'}), 404
+        groups = rs(db.execute(
+            "SELECT g.id,g.name,g.created_at,gm.joined_at FROM grp g JOIN group_member gm ON gm.group_id=g.id WHERE gm.user_id=?", (target_id,)).fetchall())
+        expenses = rs(db.execute(
+            "SELECT e.id,e.title,e.amount,e.currency,e.category,e.date,g.name grp_name FROM expense e JOIN grp g ON g.id=e.group_id WHERE e.payer_id=? ORDER BY e.date DESC LIMIT 20", (target_id,)).fetchall())
+        resets = rs(db.execute(
+            "SELECT id,otp,expires_at,used FROM password_reset WHERE user_id=? ORDER BY id DESC LIMIT 5", (target_id,)).fetchall())
+    return jsonify({'user': u, 'groups': groups, 'expenses': expenses, 'resets': resets})
+
+@app.route('/api/admin/users/<int:target_id>', methods=['PUT'])
+@admin_required
+def admin_edit_user(target_id):
+    d = request.json or {}
+    with get_db() as db:
+        u = r2d(db.execute("SELECT id FROM user WHERE id=?", (target_id,)).fetchone())
+        if not u: return jsonify({'error': 'Not found'}), 404
+        if 'name' in d:
+            db.execute("UPDATE user SET name=? WHERE id=?", (d['name'].strip(), target_id))
+        if 'email' in d:
+            db.execute("UPDATE user SET email=? WHERE id=?", (d['email'].strip().lower(), target_id))
+        if 'phone' in d:
+            db.execute("UPDATE user SET phone=? WHERE id=?", (normalize_phone(d['phone']) or None, target_id))
+        if 'currency' in d:
+            db.execute("UPDATE user SET currency=? WHERE id=?", (d['currency'], target_id))
+        if 'password' in d and d['password']:
+            if len(d['password']) < 6: return jsonify({'error': 'Password min 6 chars'}), 400
+            db.execute("UPDATE user SET password=? WHERE id=?", (generate_password_hash(d['password']), target_id))
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users/<int:target_id>/ban', methods=['POST'])
+@admin_required
+def admin_ban_user(target_id):
+    with get_db() as db:
+        db.execute("UPDATE user SET is_banned=1 WHERE id=?", (target_id,))
+        session_keys_to_clear = []  # In production you'd invalidate their session
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users/<int:target_id>/unban', methods=['POST'])
+@admin_required
+def admin_unban_user(target_id):
+    with get_db() as db:
+        db.execute("UPDATE user SET is_banned=0 WHERE id=?", (target_id,))
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users/<int:target_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_user(target_id):
+    with get_db() as db:
+        db.execute("DELETE FROM user WHERE id=?", (target_id,))
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users', methods=['POST'])
+@admin_required
+def admin_create_user():
+    d = request.json or {}
+    name = (d.get('name') or '').strip()
+    email = (d.get('email') or '').strip().lower()
+    pw = d.get('password', '')
+    phone = normalize_phone(d.get('phone', ''))
+    currency = d.get('currency', 'INR')
+    if not name or not email or not pw:
+        return jsonify({'error': 'Name, email and password required'}), 400
+    if len(pw) < 6:
+        return jsonify({'error': 'Password min 6 chars'}), 400
+    with get_db() as db:
+        try:
+            db.execute("INSERT INTO user(name,email,phone,password,currency) VALUES(?,?,?,?,?)",
+                       (name, email, phone, generate_password_hash(pw), currency))
+            new_id = db.execute("SELECT last_insert_rowid() id").fetchone()['id']
+        except Exception as e:
+            if 'UNIQUE' in str(e):
+                return jsonify({'error': 'Email or phone already registered'}), 409
+            raise
+    return jsonify({'ok': True, 'id': new_id})
+
+@app.route('/api/admin/groups')
+@admin_required
+def admin_list_groups():
+    page = int(request.args.get('page', 1))
+    per  = int(request.args.get('per', 20))
+    q    = (request.args.get('q') or '').strip()
+    off  = (page - 1) * per
+    with get_db() as db:
+        if q:
+            rows = rs(db.execute(
+                "SELECT g.id,g.name,g.description,g.created_at,u.name creator,"
+                "(SELECT COUNT(*) FROM group_member WHERE group_id=g.id) member_count,"
+                "(SELECT COUNT(*) FROM expense WHERE group_id=g.id) exp_count,"
+                "(SELECT COALESCE(SUM(amount),0) FROM expense WHERE group_id=g.id) total "
+                "FROM grp g JOIN user u ON u.id=g.created_by WHERE g.name LIKE ? OR u.name LIKE ? "
+                "ORDER BY g.created_at DESC LIMIT ? OFFSET ?",
+                (f'%{q}%', f'%{q}%', per, off)).fetchall())
+            total = db.execute("SELECT COUNT(*) c FROM grp g JOIN user u ON u.id=g.created_by WHERE g.name LIKE ? OR u.name LIKE ?", (f'%{q}%',f'%{q}%')).fetchone()['c']
+        else:
+            rows = rs(db.execute(
+                "SELECT g.id,g.name,g.description,g.created_at,u.name creator,"
+                "(SELECT COUNT(*) FROM group_member WHERE group_id=g.id) member_count,"
+                "(SELECT COUNT(*) FROM expense WHERE group_id=g.id) exp_count,"
+                "(SELECT COALESCE(SUM(amount),0) FROM expense WHERE group_id=g.id) total "
+                "FROM grp g JOIN user u ON u.id=g.created_by ORDER BY g.created_at DESC LIMIT ? OFFSET ?",
+                (per, off)).fetchall())
+            total = db.execute("SELECT COUNT(*) c FROM grp").fetchone()['c']
+    return jsonify({'groups': rows, 'total': total, 'page': page, 'per': per})
+
+@app.route('/api/admin/groups/<int:gid>', methods=['DELETE'])
+@admin_required
+def admin_delete_group(gid):
+    with get_db() as db:
+        db.execute("DELETE FROM grp WHERE id=?", (gid,))
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/activity')
+@admin_required
+def admin_activity():
+    with get_db() as db:
+        recent_users = rs(db.execute(
+            "SELECT id,name,email,created_at FROM user ORDER BY created_at DESC LIMIT 8").fetchall())
+        recent_expenses = rs(db.execute(
+            "SELECT e.id,e.title,e.amount,e.currency,e.category,e.created_at,u.name payer,g.name grp "
+            "FROM expense e JOIN user u ON u.id=e.payer_id JOIN grp g ON g.id=e.group_id "
+            "ORDER BY e.created_at DESC LIMIT 10").fetchall())
+        signups_7d = rs(db.execute(
+            "SELECT DATE(created_at) day, COUNT(*) cnt FROM user "
+            "WHERE created_at >= datetime('now','-6 days') GROUP BY DATE(created_at) ORDER BY day").fetchall())
+    return jsonify({'recent_users': recent_users, 'recent_expenses': recent_expenses, 'signups_7d': signups_7d})
 
 # ── INIT & RUN ────────────────────────────────────────────────
 init_db()

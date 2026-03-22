@@ -271,12 +271,23 @@ body { font-family:'DM Sans',sans-serif; background:var(--navy); color:var(--whi
 /* ── OCR AREA ── */
 .ocr-drop {
   border: 2px dashed rgba(255,255,255,0.15); border-radius: 14px;
-  padding: 28px; text-align: center; cursor: pointer;
+  padding: 22px 20px; text-align: center;
   transition: .2s; color: var(--gray2);
   margin-bottom: 16px;
 }
-.ocr-drop:hover, .ocr-drop.dragover { border-color: var(--mint); color: var(--mint); background: rgba(20,189,172,0.04); }
+.ocr-drop.dragover { border-color: var(--mint); color: var(--mint); background: rgba(20,189,172,0.04); }
 .ocr-drop-icon { font-size: 2.2rem; margin-bottom: 10px; }
+.ocr-btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+.ocr-action-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 20px;
+  background: rgba(20,189,172,0.12); border: 1px solid rgba(20,189,172,0.3);
+  border-radius: 8px; color: var(--mint);
+  font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500;
+  cursor: pointer; transition: all .2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.ocr-action-btn:hover, .ocr-action-btn:active { background: rgba(20,189,172,0.22); border-color: var(--mint); }
 .ocr-result {
   background: rgba(20,189,172,0.08); border: 1px solid rgba(20,189,172,0.25);
   border-radius: 10px; padding: 14px; margin-bottom: 14px;
@@ -284,6 +295,14 @@ body { font-family:'DM Sans',sans-serif; background:var(--navy); color:var(--whi
   display: none;
 }
 .ocr-result.show { display: block; }
+.item-pick-row{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.item-pick-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.item-pick-name{font-size:.88rem;font-weight:500;color:#fff}
+.item-pick-price{font-size:.88rem;color:var(--mint);font-weight:600}
+.item-pick-assignees{display:flex;flex-wrap:wrap;gap:6px}
+.item-pick-person{display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;font-size:.78rem;transition:all .15s;user-select:none}
+.item-pick-person:has(input:checked){background:rgba(20,189,172,.18);border-color:rgba(20,189,172,.5);color:var(--mint)}
+.item-pick-person input{display:none}
 
 /* ── CATEGORY PILLS ── */
 .category-grid { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -819,11 +838,22 @@ body { font-family:'DM Sans',sans-serif; background:var(--navy); color:var(--whi
     </div>
     <div class="modal-body">
       <!-- OCR -->
-      <div class="ocr-drop" id="ocr-drop" onclick="document.getElementById('ocr-input').click()" ondragover="e.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleOcrDrop(event)">
+      <div class="ocr-drop" id="ocr-drop" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleOcrDrop(event)">
         <div class="ocr-drop-icon">📷</div>
-        <div style="font-weight:500;margin-bottom:4px">Scan Bill with OCR</div>
-        <div style="font-size:.8rem">Click or drag a receipt image to auto-fill amount</div>
-        <input type="file" id="ocr-input" accept="image/*" style="display:none" onchange="runOcr(this.files[0])">
+        <div style="font-weight:500;margin-bottom:6px">Scan Bill with OCR</div>
+        <div class="ocr-btn-row">
+          <button class="ocr-action-btn" onclick="document.getElementById('ocr-camera').click()">
+            <span>📸</span> Camera
+          </button>
+          <button class="ocr-action-btn" onclick="document.getElementById('ocr-gallery').click()">
+            <span>🖼️</span> Gallery
+          </button>
+        </div>
+        <div style="font-size:.75rem;color:var(--gray2);margin-top:6px;display:none" id="ocr-drag-hint">or drag &amp; drop here</div>
+        <!-- Camera capture (mobile rear camera) -->
+        <input type="file" id="ocr-camera" accept="image/*" capture="environment" style="display:none" onchange="runOcr(this.files[0])">
+        <!-- Gallery / file picker (no capture) -->
+        <input type="file" id="ocr-gallery" accept="image/*" style="display:none" onchange="runOcr(this.files[0])">
       </div>
       <div class="ocr-result" id="ocr-result"></div>
 
@@ -1360,7 +1390,8 @@ function openModal(id) {
   if (id === 'add-expense-modal') prepExpenseModal();
   document.getElementById(id).classList.add('open');
 }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModal(id) {
+  if (id === 'add-expense-modal') { _ocrItems = []; _manualItems = []; window._itemSplitShares = {}; } document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-backdrop').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
 
 function prepExpenseModal() {
@@ -1413,6 +1444,8 @@ function setSplitType(type) {
 }
 
 let _splitMembers = [];
+let _ocrItems = [];
+let _manualItems = [];
 
 function buildCustomSplits(members) {
   _splitMembers = members;
@@ -1475,18 +1508,144 @@ function renderSplitInputs() {
     updateCustomTotal();
 
   } else if (splitType === 'items') {
-    el.innerHTML = `
-      <div style="font-size:.78rem;color:var(--gray2);margin-bottom:10px">Enter the total of each person's items.</div>
-      ${members.map(m=>`
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <div style="flex:1;font-size:.88rem;font-weight:500">${m.name}</div>
-          <input type="number" id="itm-${m.id}" placeholder="0.00" step="0.01" min="0"
-            style="width:110px;padding:6px 8px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;color:white;font-size:.85rem"
-            oninput="updateItemTotal()">
-        </div>`).join('')}
-      <div id="itm-total-row" style="font-size:.8rem;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"></div>`;
-    updateItemTotal();
+    renderItemPicker(members);
   }
+}
+
+// ── ITEM PICKER ───────────────────────────────────────────────
+function renderItemPicker(members) {
+  const el = document.getElementById('custom-splits');
+  const amount = parseFloat(document.getElementById('ae-amount').value)||0;
+
+  // Check if we have OCR items
+  const hasOcrItems = _ocrItems && _ocrItems.length > 0;
+
+  // Build item rows
+  let itemRows = '';
+  if (hasOcrItems) {
+    itemRows = _ocrItems.map((item, idx) => `
+      <div class="item-pick-row" id="ipr-${idx}">
+        <div class="item-pick-info">
+          <span class="item-pick-name">${item.name}</span>
+          <span class="item-pick-price">₹${parseFloat(item.total||item.unit_price||0).toFixed(2)}</span>
+        </div>
+        <div class="item-pick-assignees">
+          ${members.map(m => `
+            <label class="item-pick-person">
+              <input type="checkbox" class="ipc" data-item="${idx}" data-member="${m.id}" data-price="${parseFloat(item.total||item.unit_price||0)}" onchange="recalcItemSplit()">
+              <span>${m.name.split(' ')[0]}</span>
+            </label>`).join('')}
+        </div>
+      </div>`).join('');
+  } else {
+    // No OCR items — show manual entry with + add item button
+    itemRows = `<div id="manual-items-list"></div>
+      <button onclick="addManualItem()" style="width:100%;padding:8px;background:rgba(20,189,172,.1);border:1px dashed rgba(20,189,172,.3);border-radius:8px;color:var(--mint);font-size:.82rem;cursor:pointer;margin-bottom:10px">
+        + Add Item
+      </button>`;
+  }
+
+  el.innerHTML = `
+    <div style="font-size:.78rem;color:var(--gray2);margin-bottom:10px">
+      ${hasOcrItems
+        ? `✅ ${_ocrItems.length} items from bill scan — tick who ordered each item`
+        : '📝 Add items manually — tick who ordered each one'}
+    </div>
+    <div id="item-pick-list">${itemRows}</div>
+    <div id="itm-summary" style="margin-top:10px;padding:10px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid var(--border)">
+      ${members.map(m=>`
+        <div style="display:flex;justify-content:space-between;font-size:.84rem;margin-bottom:4px">
+          <span>${m.name}</span>
+          <span id="itm-share-${m.id}" style="font-weight:600;color:var(--mint)">₹0.00</span>
+        </div>`).join('')}
+      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;font-size:.8rem;display:flex;justify-content:space-between">
+        <span style="color:var(--gray2)">Items assigned</span>
+        <span id="itm-assigned-total" style="color:var(--gold)">₹0.00 / ₹${amount.toFixed(2)}</span>
+      </div>
+    </div>`;
+
+  if (!hasOcrItems) {
+    renderManualItems(members);
+  }
+  recalcItemSplit();
+}
+
+function renderManualItems(members) {
+  const list = document.getElementById('manual-items-list');
+  if (!list) return;
+  list.innerHTML = _manualItems.map((item, idx) => `
+    <div class="item-pick-row" id="ipr-m-${idx}">
+      <div class="item-pick-info" style="flex-wrap:wrap;gap:6px">
+        <input value="${item.name}" oninput="_manualItems[${idx}].name=this.value"
+          placeholder="Item name" style="flex:1;min-width:100px;padding:5px 8px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;color:#fff;font-size:.82rem">
+        <input type="number" value="${item.price}" oninput="_manualItems[${idx}].price=parseFloat(this.value)||0;recalcItemSplit()"
+          placeholder="₹0.00" step="0.01" min="0" style="width:80px;padding:5px 8px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;color:#fff;font-size:.82rem">
+        <button onclick="_manualItems.splice(${idx},1);renderManualItems(document.querySelectorAll('#itm-summary [id^=itm-share-]').length>0?_splitMembers:_splitMembers)" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.2);border-radius:6px;color:#fca5a5;padding:4px 8px;cursor:pointer;font-size:.78rem">✕</button>
+      </div>
+      <div class="item-pick-assignees">
+        ${members.map(m => `
+          <label class="item-pick-person">
+            <input type="checkbox" class="ipc-m" data-item="${idx}" data-member="${m.id}" onchange="recalcItemSplit()">
+            <span>${m.name.split(' ')[0]}</span>
+          </label>`).join('')}
+      </div>
+    </div>`).join('');
+  recalcItemSplit();
+}
+
+function addManualItem() {
+  _manualItems.push({name: '', price: 0});
+  renderManualItems(_splitMembers);
+}
+
+function recalcItemSplit() {
+  const shares = {};
+  _splitMembers.forEach(m => shares[m.id] = 0);
+  let totalAssigned = 0;
+
+  // OCR items
+  document.querySelectorAll('.ipc').forEach(cb => {
+    if (!cb.checked) return;
+    const price = parseFloat(cb.dataset.price) || 0;
+    const memberId = cb.dataset.member;
+    // Count how many people share this item
+    const itemIdx = cb.dataset.item;
+    const sharedBy = document.querySelectorAll(`.ipc[data-item="${itemIdx}"]:checked`).length;
+    if (sharedBy > 0 && shares[memberId] !== undefined) {
+      shares[memberId] += price / sharedBy;
+    }
+  });
+
+  // Manual items
+  document.querySelectorAll('.ipc-m').forEach(cb => {
+    if (!cb.checked) return;
+    const itemIdx = cb.dataset.item;
+    const price = _manualItems[itemIdx]?.price || 0;
+    const memberId = cb.dataset.member;
+    const sharedBy = document.querySelectorAll(`.ipc-m[data-item="${itemIdx}"]:checked`).length;
+    if (sharedBy > 0 && shares[memberId] !== undefined) {
+      shares[memberId] += price / sharedBy;
+    }
+  });
+
+  // Update display
+  let total = 0;
+  _splitMembers.forEach(m => {
+    const el = document.getElementById(`itm-share-${m.id}`);
+    if (el) el.textContent = '₹' + shares[m.id].toFixed(2);
+    total += shares[m.id];
+  });
+
+  const amount = parseFloat(document.getElementById('ae-amount').value) || 0;
+  const assignedEl = document.getElementById('itm-assigned-total');
+  if (assignedEl) {
+    const diff = amount - total;
+    const color = Math.abs(diff) < 0.5 ? 'var(--green)' : 'var(--gold)';
+    assignedEl.innerHTML = `<span style="color:${color}">₹${total.toFixed(2)} / ₹${amount.toFixed(2)}</span>`;
+  }
+
+  // Store for submission
+  window._itemSplitShares = shares;
 }
 
 function updatePctTotal() {
@@ -1525,12 +1684,7 @@ function updateCustomTotal() {
 }
 
 function updateItemTotal() {
-  const amount = parseFloat(document.getElementById('ae-amount').value)||0;
-  let total=0;
-  _splitMembers.forEach(m=>{ total+=parseFloat(document.getElementById(`itm-${m.id}`)?.value)||0; });
-  const row=document.getElementById('itm-total-row');
-  const diff=amount-total;
-  if(row) row.innerHTML = amount ? `Items total: <strong>${fmtNum(total)}</strong> / ${fmtNum(amount)} — <strong style="color:${Math.abs(diff)<0.02?'var(--green)':'var(--gold)'}">${diff>0?`${fmtNum(diff)} remaining (e.g. tax/tip)`:'✓'}</strong>` : `Items total: <strong>${fmtNum(total)}</strong>`;
+  recalcItemSplit && recalcItemSplit();
 }
 
 function fmtNum(n) { return (Math.round(n*100)/100).toFixed(2); }
@@ -1641,9 +1795,7 @@ async function addExpense() {
     _splitMembers.forEach(m=>{ shares[m.id]=parseFloat(document.getElementById(`shr-${m.id}`)?.value||1); });
     body.share_splits = shares;
   } else if (splitType === 'items') {
-    const items={};
-    _splitMembers.forEach(m=>{ items[m.id]=parseFloat(document.getElementById(`itm-${m.id}`)?.value||0); });
-    body.item_splits = items;
+    body.item_splits = window._itemSplitShares || {};
   }
 
   const r = await fetch(`/api/groups/${gid}/expenses`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
@@ -1661,39 +1813,126 @@ async function runOcr(file) {
   if (!file) return;
   const drop = document.getElementById('ocr-drop');
   const res  = document.getElementById('ocr-result');
-  drop.innerHTML = '<div class="ocr-drop-icon">⏳</div><div style="font-weight:500">Scanning receipt…</div><div style="font-size:.78rem;color:var(--gray2)">Using AI vision for best accuracy</div>';
+  res.classList.remove('show'); res.innerHTML = '';
+  drop.innerHTML = '<div class="ocr-drop-icon">⏳</div><div style="font-weight:500;margin-bottom:4px">Scanning receipt…</div><div style="font-size:.78rem;color:var(--gray2)">AI is reading your bill</div>';
   const fd = new FormData(); fd.append('file', file);
   try {
     const r = await fetch('/api/ocr', {method:'POST', body:fd});
     const d = await r.json();
-    let filled = [];
-    if (d.amount) {
-      document.getElementById('ae-amount').value = d.amount;
-      filled.push(`amount: <strong>${d.amount}</strong>`);
+    const BILL_TYPES = {
+      restaurant:{icon:'🍽️',label:'Restaurant',cat:'Food'},
+      grocery:{icon:'🛒',label:'Grocery Store',cat:'Groceries'},
+      pharmacy:{icon:'💊',label:'Pharmacy',cat:'Health'},
+      fuel:{icon:'⛽',label:'Fuel / Petrol',cat:'Transport'},
+      utility:{icon:'⚡',label:'Utility Bill',cat:'Utilities'},
+      hotel:{icon:'🏨',label:'Hotel',cat:'Travel'},
+      transport:{icon:'🚌',label:'Transport',cat:'Transport'},
+      shopping:{icon:'🛍️',label:'Shopping',cat:'Shopping'},
+      medical:{icon:'🏥',label:'Medical',cat:'Health'},
+      other:{icon:'🧾',label:'Bill',cat:'General'}
+    };
+    const meta = BILL_TYPES[d.bill_type] || BILL_TYPES.other;
+    const cur = (d.currency||'').toUpperCase().replace(/[^A-Z]/g,'').substring(0,3);
+    const sym = {INR:'₹',USD:'$',EUR:'€',GBP:'£',AED:'د.إ',SGD:'S$',AUD:'A$'}[cur] || cur;
+
+    // Auto-fill form
+    if (d.amount) document.getElementById('ae-amount').value = parseFloat(d.amount).toFixed(2);
+    if (d.title && !document.getElementById('ae-title').value)
+      document.getElementById('ae-title').value = d.title || (meta.label + (d.store_name ? ' — '+d.store_name : ''));
+    if (cur) { const sel=document.getElementById('ae-currency'); if([...sel.options].some(o=>o.value===cur)) sel.value=cur; }
+    if (d.date) { try{document.getElementById('ae-date').value=d.date;}catch(_){} }
+    // Store OCR items for By Item split
+    _ocrItems = items || [];
+
+    // Auto-set category
+    document.querySelectorAll('#cat-grid .cat-pill').forEach(btn=>{if(btn.dataset.cat===meta.cat)btn.click();});
+
+    const items = d.items||[], taxes = d.taxes||[];
+    const subtotal = parseFloat(d.subtotal)||0, discount = parseFloat(d.discount)||0;
+    const svc = parseFloat(d.service_charge)||0, tip = parseFloat(d.tip)||0;
+    const total = parseFloat(d.amount)||0;
+    const totalTax = taxes.reduce((s,t)=>s+(parseFloat(t.amount)||0),0)+svc;
+    const taxPct = subtotal>0?((totalTax/subtotal)*100).toFixed(1):null;
+
+    let html = `<div style="background:rgba(20,189,172,.06);border:1px solid rgba(20,189,172,.18);border-radius:14px;padding:16px">`;
+
+    // Header
+    html += `<div style="display:flex;align-items:center;gap:10px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.07)">
+      <span style="font-size:2rem">${meta.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.store_name||meta.label}</div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.38);margin-top:2px;display:flex;flex-wrap:wrap;gap:6px">
+          <span>${meta.label}</span>
+          ${d.date?`<span>· ${d.date}</span>`:''}
+          ${d.payment_method&&d.payment_method!=='unknown'?`<span>· ${d.payment_method.toUpperCase()}</span>`:''}
+          <span style="background:rgba(20,189,172,.15);border:1px solid rgba(20,189,172,.3);border-radius:4px;padding:1px 5px;color:var(--mint)">${d.source==='vision'?'🤖 AI':'🔍 OCR'}</span>
+        </div>
+      </div>
+      ${total?`<div style="font-size:1.15rem;font-weight:800;color:var(--mint);white-space:nowrap">${sym}${total.toFixed(2)}</div>`:''}
+    </div>`;
+
+    // Items list
+    if (items.length) {
+      html += `<div style="margin-bottom:12px">
+        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.3);margin-bottom:7px">Items Purchased (${items.length})</div>
+        <div style="display:flex;flex-direction:column;gap:3px">`;
+      items.forEach(it=>{
+        const itTotal = parseFloat(it.total)||((parseFloat(it.qty)||1)*(parseFloat(it.unit_price)||0));
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:8px;gap:8px">
+          <div style="flex:1;min-width:0">
+            <span style="font-size:.85rem">${it.name||'Item'}</span>
+            ${(it.qty&&it.qty!=1)?`<span style="font-size:.7rem;color:rgba(255,255,255,.3);margin-left:5px">×${it.qty}${it.unit_price?` @ ${sym}${parseFloat(it.unit_price).toFixed(2)}`:''}</span>`:''}
+          </div>
+          <span style="font-size:.88rem;font-weight:600;white-space:nowrap">${sym}${itTotal.toFixed(2)}</span>
+        </div>`;
+      });
+      html += `</div></div>`;
     }
-    if (d.title && !document.getElementById('ae-title').value) {
-      document.getElementById('ae-title').value = d.title;
-      filled.push(`title: <strong>${d.title}</strong>`);
+
+    // Breakdown
+    const hasBreakdown = subtotal||taxes.length||discount||svc||tip;
+    if (hasBreakdown) {
+      html += `<div style="border-top:1px solid rgba(255,255,255,.07);padding-top:10px">
+        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.3);margin-bottom:7px">Price Breakdown</div>
+        <div style="display:flex;flex-direction:column;gap:5px">`;
+      if(subtotal) html+=`<div style="display:flex;justify-content:space-between;font-size:.84rem"><span style="color:rgba(255,255,255,.45)">Subtotal</span><span>${sym}${subtotal.toFixed(2)}</span></div>`;
+      if(discount>0) html+=`<div style="display:flex;justify-content:space-between;font-size:.84rem"><span style="color:#4ade80">Discount</span><span style="color:#4ade80">− ${sym}${discount.toFixed(2)}</span></div>`;
+      taxes.forEach(tx=>{
+        html+=`<div style="display:flex;justify-content:space-between;font-size:.84rem">
+          <span style="color:rgba(255,200,100,.7)">${tx.label||'Tax'}${tx.rate?' ('+tx.rate+'%)':''}</span>
+          <span style="color:rgba(255,200,100,.7)">+ ${sym}${parseFloat(tx.amount||0).toFixed(2)}</span>
+        </div>`;
+      });
+      if(svc>0) html+=`<div style="display:flex;justify-content:space-between;font-size:.84rem"><span style="color:rgba(255,200,100,.7)">Service Charge</span><span style="color:rgba(255,200,100,.7)">+ ${sym}${svc.toFixed(2)}</span></div>`;
+      if(tip>0) html+=`<div style="display:flex;justify-content:space-between;font-size:.84rem"><span style="color:rgba(255,200,100,.7)">Tip</span><span style="color:rgba(255,200,100,.7)">+ ${sym}${tip.toFixed(2)}</span></div>`;
+      if(total) html+=`<div style="display:flex;justify-content:space-between;font-size:.95rem;font-weight:700;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;margin-top:3px">
+        <span>Grand Total ${taxPct?`<span style="font-size:.68rem;font-weight:400;color:rgba(255,255,255,.3)">(${taxPct}% tax)</span>`:''}  </span>
+        <span style="color:var(--mint)">${sym}${total.toFixed(2)}</span>
+      </div>`;
+      html += `</div></div>`;
+    } else if (!items.length && total) {
+      html += `<div style="font-size:.82rem;color:rgba(255,255,255,.4);text-align:center;padding:4px 0">✓ Total amount auto-filled — enter details manually if needed</div>`;
     }
-    if (d.currency) {
-      const sel = document.getElementById('ae-currency');
-      const cur = d.currency.toUpperCase().replace(/[^A-Z]/g,'').substring(0,3);
-      if ([...sel.options].some(o=>o.value===cur)) { sel.value=cur; filled.push(`currency: <strong>${cur}</strong>`); }
-    }
-    const src = d.source==='vision' ? '🤖 AI Vision' : '🔍 OCR';
-    if (filled.length) {
-      res.innerHTML = `<span style="color:var(--green)">✅ ${src} detected — ${filled.join(', ')}</span>${d.text?`<br><small style="color:var(--gray2);margin-top:4px;display:block">${(d.text||'').substring(0,180)}</small>`:''}`;
+    html += `</div>`;
+
+    if (!d.amount && !items.length) {
+      const hint = d.setup_hint ? `<div style="margin-top:8px;font-size:.78rem;opacity:.7">💡 ${d.setup_hint}</div>` : '';
+      const errMsg = d.error ? `<div style="font-size:.8rem;opacity:.6;margin-top:4px">${d.error}</div>` : '';
+      res.innerHTML = `<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:12px;font-size:.85rem;color:rgba(255,220,100,.9)">⚠️ Could not read bill details. Please enter amount manually.${errMsg}${hint}</div>`;
     } else {
-      res.innerHTML = `<span style="color:var(--gold)">⚠️ ${src} could not detect amount. Please enter manually.</span>${d.text?`<br><small style="color:var(--gray2)">${d.text.substring(0,180)}</small>`:''}`;
+      res.innerHTML = html;
     }
     res.classList.add('show');
   } catch(e) {
-    res.innerHTML = '<span style="color:var(--red)">⚠️ Scan failed. Please enter the amount manually.</span>';
+    console.error('OCR display error:', e);
+    res.innerHTML = '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:12px;font-size:.85rem;color:#fca5a5">⚠️ Display error: ' + e.message + '</div>';
     res.classList.add('show');
   }
-  drop.innerHTML = '<div class="ocr-drop-icon">📷</div><div style="font-weight:500">Scan another bill</div><input type="file" id="ocr-input" accept="image/*" style="display:none" onchange="runOcr(this.files[0])">';
-  drop.onclick = () => document.getElementById('ocr-input').click();
+  // Reset drop zone
+  const drop2 = document.getElementById('ocr-drop');
+  if(drop2) drop2.innerHTML = '<div class="ocr-drop-icon">📷</div><div style="font-weight:500;margin-bottom:6px">Scan another bill</div><div class="ocr-btn-row"><button class="ocr-action-btn" onclick="document.getElementById(\'ocr-cam2\').click()"><span>📸</span> Camera</button><button class="ocr-action-btn" onclick="document.getElementById(\'ocr-gal2\').click()"><span>🖼️</span> Gallery</button></div><input type="file" id="ocr-cam2" accept="image/*" capture="environment" style="display:none" onchange="runOcr(this.files[0])"><input type="file" id="ocr-gal2" accept="image/*" style="display:none" onchange="runOcr(this.files[0])">';
 }
+
 
 function handleOcrDrop(e) {
   e.preventDefault();

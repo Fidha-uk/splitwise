@@ -1,51 +1,74 @@
 # SplitWise — Group Expense Sharing System
 
-**Mini Project · Group 1 · M-DIT Kozhikode · Dept. of CSE · 2026**
 
-A full-stack web application for automated group expense splitting, UPI payments, and debt settlement.
+
+A full-stack web application for automated group expense splitting, multi-currency support, AI-powered receipt scanning, UPI payments, and debt settlement.
 
 ---
 
 ## Quick Start (Local)
 
 ```bash
-# 1. Clone / unzip the project
+# 1. Clone the repository
+git clone https://github.com/YOUR_USERNAME/splitwise.git
 cd splitwise
 
-# 2. Run setup (creates venv, installs deps, generates .env)
-bash install.sh
+# 2. Create a virtual environment and install dependencies
+python -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
-# 3. Start the app
-source venv/bin/activate
+# 3. Create your .env file
+cp .env.example .env
+# Open .env and set SECRET_KEY to any long random string
+
+# 4. Start the app
 python app.py
 ```
 
-Open **http://localhost:5000** — click **"Load Demo Data"** on the login page to get started instantly.
+Open **http://localhost:5000** and register your account to get started.
 
-**Demo credentials:** `amaya@demo.com` / `demo123`
+---
+
+## Deploy to Render (Recommended — Free)
+
+1. Push this repo to GitHub
+2. Go to [render.com](https://render.com) → New → Web Service → connect your repo
+3. Render auto-detects `render.yaml` — just add your environment variables:
+
+| Key | Value |
+|-----|-------|
+| `SECRET_KEY` | Any long random string (30+ chars) |
+| `FLASK_ENV` | `production` |
+| `HTTPS` | `true` |
+| `ANTHROPIC_API_KEY` | Your key from console.anthropic.com *(optional — for AI receipt scanning)* |
+
+4. Click **Create Web Service** — live in ~3 minutes.
+
+### Updating after changes
+```bash
+git add .
+git commit -m "describe your change"
+git push
+```
+Render redeploys automatically on every push.
 
 ---
 
 ## Deploy to VPS / Cloud Server
 
 ```bash
-# On your server (Ubuntu 22.04+), as root:
+# On your Ubuntu 22.04+ server as root:
 sudo bash deploy.sh yourdomain.com
 ```
 
-That single command will:
-- Install Python 3, Nginx
-- Create `/var/www/splitwise` with a virtualenv
-- Set up a **Gunicorn** WSGI server (4 workers)
-- Configure **Nginx** as a reverse proxy
-- Create a **systemd** service (auto-starts on reboot)
-- Open firewall ports 80/443
+This will install Python 3 + Nginx, set up Gunicorn with 4 workers, configure a systemd service, and open firewall ports.
 
-### After deploying — add HTTPS (free via Let's Encrypt)
+### Add HTTPS (free via Let's Encrypt)
 ```bash
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d yourdomain.com
-# Then edit /var/www/splitwise/.env → set HTTPS=true
+# Then in /var/www/splitwise/.env set HTTPS=true
 sudo systemctl restart splitwise
 ```
 
@@ -57,17 +80,16 @@ sudo systemctl restart splitwise
 splitwise/
 ├── app.py                  # Flask application — all routes & logic
 ├── wsgi.py                 # Gunicorn entry point
-├── config.py               # Config classes (dev / prod)
+├── render.yaml             # Render.com deployment config
 ├── requirements.txt        # Python dependencies
-├── install.sh              # One-command local setup
-├── deploy.sh               # VPS deployment automation
+├── deploy.sh               # VPS deployment script
 ├── nginx.conf              # Nginx reverse proxy config
 ├── splitwise.service       # Systemd unit file
 ├── .env.example            # Environment variable template
 ├── .gitignore
-├── instance/               # SQLite database (auto-created)
+├── instance/               # SQLite database (auto-created, gitignored)
 │   └── splitwise.db
-├── uploads/                # OCR bill images (auto-created)
+├── uploads/                # Receipt images (auto-created, gitignored)
 └── templates/
     ├── index.html          # Landing + auth page
     └── dashboard.html      # Full SPA dashboard
@@ -79,19 +101,23 @@ splitwise/
 
 | Feature | Details |
 |---------|---------|
-| **Auth** | Register/login with bcrypt-hashed passwords, phone number support |
-| **Groups** | Create groups, add members by email or phone |
-| **Expenses** | Add with payer, category, date, notes |
-| **OCR** | Scan receipt image → auto-extract amount (requires Tesseract) |
-| **Split Types** | Equal split or custom per-person amounts |
+| **Auth** | Register/login with bcrypt-hashed passwords, session management |
+| **Groups** | Create, edit, delete groups — add members by email or phone |
+| **Member Management** | Remove members, leave groups, creator badge |
+| **Expenses** | Add, edit, delete — with payer, category, date, notes |
+| **Split Types** | Equal, Percentage, Shares/Ratio, Exact amounts, By Item |
+| **Multi-Currency** | 20 currencies with live INR conversion hint |
+| **AI OCR** | Scan receipt → auto-fills amount, title & currency via Claude Vision |
 | **Balances** | Real-time net balance per user per group |
-| **Settle Up** | Minimum-transaction algorithm to clear debts |
+| **Settle Up** | Minimum-transaction algorithm to clear all debts |
 | **Payments** | Record payments, confirm receipt, auto-settle splits |
 | **Simulate** | Mock payment gateway with TXN ID + UTR generation |
-| **UPI QR** | Generate scannable QR codes (works with all BHIM apps) |
-| **Deep Links** | Open GPay / PhonePe / Paytm with pre-filled amount |
+| **UPI / QR** | Scannable QR codes — works with GPay, PhonePe, Paytm |
+| **Deep Links** | Open payment apps with pre-filled amount |
 | **My Wallet** | Save & manage UPI IDs, bank accounts, cards |
+| **Profile** | Edit name, phone, default currency, change password |
 | **Reports** | Category spending, totals, net positions |
+| **Security** | Rate-limited login, security headers, input validation |
 
 ---
 
@@ -104,21 +130,41 @@ splitwise/
 | POST | `/api/login` | `{email, password}` |
 | POST | `/api/logout` | — |
 | GET  | `/api/me` | — |
+| PUT  | `/api/me` | `{name, phone?, currency?}` |
+| PUT  | `/api/me/password` | `{old_password, new_password}` |
 
 ### Groups
 | Method | Endpoint | Body |
 |--------|----------|------|
-| GET  | `/api/groups` | — |
-| POST | `/api/groups` | `{name, description?, member_emails?[]}` |
-| GET  | `/api/groups/<id>` | — |
-| POST | `/api/groups/<id>/members` | `{identifier}` (email or phone) |
+| GET    | `/api/groups` | — |
+| POST   | `/api/groups` | `{name, description?, member_emails?[]}` |
+| GET    | `/api/groups/<id>` | — |
+| PUT    | `/api/groups/<id>` | `{name, description?}` |
+| DELETE | `/api/groups/<id>` | — *(creator only)* |
+
+### Members
+| Method | Endpoint | Body |
+|--------|----------|------|
+| POST   | `/api/groups/<id>/members` | `{identifier}` (email or phone) |
+| DELETE | `/api/groups/<id>/members/<user_id>` | — *(creator only)* |
+| POST   | `/api/groups/<id>/leave` | — |
 
 ### Expenses
 | Method | Endpoint | Body |
 |--------|----------|------|
-| POST   | `/api/groups/<id>/expenses` | `{title, amount, currency?, payer_id?, category?, split_type?, custom_splits?, date?, notes?}` |
-| DELETE | `/api/expenses/<id>` | — |
+| POST   | `/api/groups/<id>/expenses` | `{title, amount, currency?, payer_id?, category?, split_type?, custom_splits?, percentage_splits?, share_splits?, item_splits?, date?, notes?}` |
+| PUT    | `/api/expenses/<id>` | `{title?, amount?, currency?, category?, notes?, date?}` |
+| DELETE | `/api/expenses/<id>` | — *(payer only)* |
 | POST   | `/api/expenses/<id>/settle` | `{user_id?}` |
+
+### Split Types
+| `split_type` | Extra field required |
+|---|---|
+| `equal` | *(none — splits evenly)* |
+| `percentage` | `percentage_splits: {user_id: percent}` — must total 100 |
+| `shares` | `share_splits: {user_id: share_count}` — e.g. 2:1:1 ratio |
+| `custom` | `custom_splits: {user_id: amount}` |
+| `items` | `item_splits: {user_id: amount}` |
 
 ### Payments
 | Method | Endpoint | Body |
@@ -145,72 +191,89 @@ splitwise/
 | GET  | `/api/users/<id>/upi` | — |
 
 ### Utilities
-| Method | Endpoint |
-|--------|----------|
-| POST | `/api/ocr` (multipart file) |
-| GET  | `/api/stats` |
-| POST | `/api/seed` |
-| GET  | `/health` |
+| Method | Endpoint | Notes |
+|--------|----------|-------|
+| POST | `/api/ocr` | Multipart file upload — returns `{amount, title, currency, text, source}` |
+| GET  | `/api/stats` | Returns totals, balances, category breakdown |
+| GET  | `/health` | Server health check |
 
 ---
 
 ## Database Schema
 
 ```
-user            id, name, email, phone, password, currency
-grp             id, name, description, created_by
-group_member    group_id, user_id
+user            id, name, email, phone, password, currency, created_at
+grp             id, name, description, created_by, created_at
+group_member    id, group_id, user_id, joined_at
 expense         id, group_id, payer_id, title, amount, currency,
-                category, notes, split_type, date
-split_detail    expense_id, user_id, share, is_paid, paid_at
-payment_method  user_id, type, label, details, is_default
-payment         group_id, from_user_id, to_user_id, amount,
-                method_type, method_label, status, reference
+                category, notes, split_type, date, created_at
+split_detail    id, expense_id, user_id, share, is_paid, paid_at
+payment_method  id, user_id, type, label, details, is_default, created_at
+payment         id, group_id, from_user_id, to_user_id, amount, currency,
+                method_type, method_label, note, status, reference,
+                created_at, confirmed_at
 ```
 
 ---
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FLASK_ENV` | `development` | `development` or `production` |
-| `SECRET_KEY` | *(required in prod)* | Random 32-char string |
-| `DATABASE` | `instance/splitwise.db` | Absolute path to SQLite file |
-| `UPLOAD_FOLDER` | `uploads/` | Bill image storage |
-| `HTTPS` | `false` | Set `true` behind HTTPS for secure cookies |
-| `PORT` | `5000` | Server port |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | **Yes** | Long random string — app won't start without it |
+| `FLASK_ENV` | No | `development` or `production` (default: development) |
+| `DATABASE` | No | Absolute path to SQLite file (default: `instance/splitwise.db`) |
+| `UPLOAD_FOLDER` | No | Receipt image storage path (default: `uploads/`) |
+| `HTTPS` | No | Set `true` behind HTTPS to enable secure cookies |
+| `PORT` | No | Server port (default: `5000`) |
+| `ANTHROPIC_API_KEY` | No | Enables AI-powered receipt scanning via Claude Vision |
 
 ---
 
-## Server Management
+## Supported Currencies
+
+INR, USD, EUR, GBP, JPY, CNY, AUD, CAD, CHF, SGD, AED, MYR, THB, IDR, BRL, MXN, ZAR, KRW, TRY, SAR
+
+---
+
+## Security
+
+- Passwords hashed with **bcrypt** (Werkzeug)
+- Login brute-force protection — **10 attempts per IP per 15 minutes**
+- Session cookies: `HttpOnly`, `SameSite=Lax`, `Secure` (when HTTPS=true)
+- Security headers on every response: `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Referrer-Policy`
+- All API routes require authentication except `/api/login`, `/api/register`, `/health`
+- Input length validation on all user-supplied fields
+- SQL injection protected via parameterised queries throughout
+
+---
+
+## Server Management (VPS)
 
 ```bash
-# Check service status
-sudo systemctl status splitwise
-
-# Restart after code changes
-sudo systemctl restart splitwise
-
-# View live logs
-sudo journalctl -u splitwise -f
-
-# View Nginx logs
-sudo tail -f /var/www/splitwise/instance/access.log
-sudo tail -f /var/www/splitwise/instance/error.log
+sudo systemctl status splitwise      # Check status
+sudo systemctl restart splitwise     # Restart after changes
+sudo journalctl -u splitwise -f      # Live logs
+sudo tail -f /var/www/splitwise/instance/access.log   # Nginx access log
+sudo tail -f /var/www/splitwise/instance/error.log    # Nginx error log
 ```
 
 ---
 
-## Enable OCR Bill Scanning
+## Enable OCR Receipt Scanning
+
+The app uses **Claude Vision API** (if `ANTHROPIC_API_KEY` is set) for best results.
+It falls back to Tesseract OCR automatically.
 
 ```bash
-# Install Tesseract engine
+# Install Tesseract (fallback)
 sudo apt install tesseract-ocr       # Ubuntu/Debian
 brew install tesseract               # macOS
 
-# Install Python bindings
-source venv/bin/activate
 pip install pytesseract Pillow
 sudo systemctl restart splitwise
 ```
+
+---
+
+*Built with Flask · SQLite · Vanilla JS · Deployed on Render*

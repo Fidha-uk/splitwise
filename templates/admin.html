@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SplitWise — Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f1c2e;--card:#172a43;--card2:#1e3354;--border:rgba(255,255,255,.08);--mint:#149588;--teal:#0d494b;--gold:#f59e0b;--red:#ef4444;--green:#22c55e;--white:#fff;--gray:rgba(255,255,255,.45);--gray2:rgba(255,255,255,.25)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--white);min-height:100vh;display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{width:230px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 0;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform .3s}
+.sidebar-logo{padding:0 22px 22px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.sidebar-logo .logo{font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800}
+.sidebar-logo .logo span{color:var(--mint)}
+.sidebar-logo .badge{display:inline-block;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:2px 7px;font-size:.65rem;color:#fca5a5;letter-spacing:.6px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 22px;font-size:.88rem;color:var(--gray);cursor:pointer;transition:all .2s;border-left:3px solid transparent;text-decoration:none}
+.nav-item:hover{color:var(--white);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--white);background:rgba(20,149,136,.1);border-left-color:var(--mint)}
+.nav-icon{font-size:1.1rem;width:22px;text-align:center}
+.nav-section{font-size:.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gray2);padding:18px 22px 6px}
+.sidebar-footer{margin-top:auto;padding:16px 22px;border-top:1px solid var(--border)}
+.logout-btn{width:100%;padding:9px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:8px;color:#fca5a5;font-family:'DM Sans',sans-serif;font-size:.84rem;cursor:pointer;transition:all .2s}
+.logout-btn:hover{background:rgba(239,68,68,.2)}
+
+/* ── MAIN ── */
+.main{margin-left:230px;flex:1;padding:28px 32px;min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.topbar h1{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800}
+.topbar .sub{font-size:.82rem;color:var(--gray);margin-top:2px}
+
+/* ── VIEWS ── */
+.view{display:none}
+.view.active{display:block}
+
+/* ── STAT CARDS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;transition:all .2s}
+.stat-card:hover{border-color:rgba(20,149,136,.3);transform:translateY(-1px)}
+.stat-icon{font-size:1.6rem;margin-bottom:10px}
+.stat-val{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;line-height:1}
+.stat-label{font-size:.75rem;color:var(--gray);margin-top:5px}
+.stat-badge{display:inline-block;font-size:.68rem;padding:2px 7px;border-radius:4px;margin-top:6px}
+.badge-green{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.2)}
+.badge-gold{background:rgba(245,158,11,.12);color:var(--gold);border:1px solid rgba(245,158,11,.2)}
+.badge-red{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}
+.badge-blue{background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.2)}
+
+/* ── TABLES ── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+.section-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700}
+.search-box{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:9px;padding:7px 12px;flex:1;max-width:280px}
+.search-box input{background:none;border:none;outline:none;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.88rem;width:100%}
+.search-box input::placeholder{color:var(--gray2)}
+.btn-sm{padding:7px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer;border:none;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.btn-primary-sm{background:var(--teal);color:#fff}
+.btn-primary-sm:hover{background:var(--mint)}
+.btn-danger-sm{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}
+.btn-danger-sm:hover{background:rgba(239,68,68,.22)}
+.btn-edit-sm{background:rgba(59,130,246,.1);color:#93c5fd;border:1px solid rgba(59,130,246,.2)}
+.btn-edit-sm:hover{background:rgba(59,130,246,.2)}
+.btn-warn-sm{background:rgba(245,158,11,.1);color:var(--gold);border:1px solid rgba(245,158,11,.2)}
+.btn-warn-sm:hover{background:rgba(245,158,11,.2)}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--gray2);padding:12px 16px;text-align:left;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}
+td{padding:11px 16px;font-size:.86rem;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--teal);display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;margin-right:8px}
+.user-cell{display:flex;align-items:center}
+.user-info{display:flex;flex-direction:column}
+.user-name{font-weight:500}
+.user-email{font-size:.74rem;color:var(--gray)}
+.tag{display:inline-block;padding:2px 7px;border-radius:5px;font-size:.7rem;font-weight:600}
+.tag-banned{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}
+.tag-active{background:rgba(34,197,94,.1);color:#4ade80;border:1px solid rgba(34,197,94,.2)}
+.pagination{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:.82rem;color:var(--gray)}
+.page-btn{padding:5px 11px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:7px;cursor:pointer;color:var(--white);font-size:.8rem;transition:all .2s}
+.page-btn:hover{background:rgba(255,255,255,.1)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+.empty{text-align:center;padding:36px;color:var(--gray);font-size:.88rem}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:#1a3050;border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;position:relative;animation:pop .2s ease}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-x{position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;color:var(--gray);font-size:1.4rem;line-height:1;padding:4px 8px;transition:color .2s}
+.modal-x:hover{color:#fff}
+.modal-title{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;margin-bottom:20px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.78rem;font-weight:500;color:var(--gray);margin-bottom:6px}
+.form-group input,.form-group select{width:100%;padding:11px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#fff;font-family:'DM Sans',sans-serif;font-size:.92rem;outline:none;transition:all .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--mint);background:rgba(20,149,136,.07)}
+.form-group select option{background:#172a43}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.err-box{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 14px;font-size:.83rem;color:#fca5a5;margin-top:10px;display:none}
+.err-box.show{display:block}
+.success-box{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 14px;font-size:.83rem;color:#4ade80;margin-top:10px;display:none}
+.success-box.show{display:block}
+
+/* ── ACTIVITY ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.activity-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px}
+.activity-title{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;margin-bottom:14px;color:rgba(255,255,255,.8)}
+.activity-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.activity-row:last-child{border-bottom:none}
+.activity-text{font-size:.83rem;color:rgba(255,255,255,.8);flex:1}
+.activity-time{font-size:.72rem;color:var(--gray2);white-space:nowrap}
+.chart-bar-wrap{margin-top:6px}
+.chart-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.chart-label{font-size:.75rem;color:var(--gray);width:60px;flex-shrink:0}
+.chart-bar-bg{flex:1;background:rgba(255,255,255,.05);border-radius:4px;height:8px;overflow:hidden}
+.chart-bar{height:100%;background:linear-gradient(90deg,var(--teal),var(--mint));border-radius:4px;transition:width .5s}
+.chart-count{font-size:.75rem;color:var(--gray2);width:24px;text-align:right}
+
+/* user detail panel */
+.detail-section{margin-bottom:18px}
+.detail-section h4{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--gray2);margin-bottom:10px}
+.detail-kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.85rem}
+.detail-kv:last-child{border-bottom:none}
+.detail-k{color:var(--gray)}
+.detail-v{font-weight:500;text-align:right}
+.mini-list{display:flex;flex-direction:column;gap:6px}
+.mini-item{background:rgba(255,255,255,.04);border-radius:8px;padding:8px 12px;font-size:.82rem}
+
+/* toast */
+.toast{position:fixed;bottom:28px;right:24px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:.88rem;font-weight:500;animation:fadeInUp .3s ease;pointer-events:none}
+.toast.success{background:#166534;border:1px solid rgba(34,197,94,.3);color:#4ade80}
+.toast.error{background:#7f1d1d;border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;margin-right:5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:20px 16px}
+  .two-col{grid-template-columns:1fr}
+  .mobile-menu-btn{display:flex}
+}
+.mobile-menu-btn{display:none;background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;margin-right:12px}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo">Split<span>Wise</span></div>
+    <div class="badge">ADMIN PANEL</div>
+  </div>
+
+  <div class="nav-section">Overview</div>
+  <a class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">
+    <span class="nav-icon">📊</span> Dashboard
+  </a>
+  <a class="nav-item" data-view="activity" onclick="showView('activity')">
+    <span class="nav-icon">⚡</span> Recent Activity
+  </a>
+
+  <div class="nav-section">Management</div>
+  <a class="nav-item" data-view="users" onclick="showView('users')">
+    <span class="nav-icon">👥</span> Users
+  </a>
+  <a class="nav-item" data-view="groups" onclick="showView('groups')">
+    <span class="nav-icon">🏠</span> Groups
+  </a>
+
+  <div class="sidebar-footer">
+    <div style="font-size:.72rem;color:var(--gray2);margin-bottom:8px">Logged in as Admin</div>
+    <button class="logout-btn" onclick="doLogout()">🚪 Logout</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div>
+      <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+    </div>
+    <div>
+      <h1 id="view-title">Dashboard</h1>
+      <div class="sub" id="view-sub">Overview of your SplitWise platform</div>
+    </div>
+    <div style="font-size:.8rem;color:var(--gray2)" id="topbar-time"></div>
+  </div>
+
+  <!-- ── DASHBOARD ── -->
+  <div class="view active" id="view-dashboard">
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="stat-icon">👤</div><div class="stat-val" id="s-users">—</div><div class="stat-label">Total Users</div><div class="stat-badge badge-green" id="s-new-week">…</div></div>
+      <div class="stat-card"><div class="stat-icon">🏠</div><div class="stat-val" id="s-groups">—</div><div class="stat-label">Total Groups</div><div class="stat-badge badge-blue" id="s-active">…</div></div>
+      <div class="stat-card"><div class="stat-icon">🧾</div><div class="stat-val" id="s-expenses">—</div><div class="stat-label">Total Expenses</div></div>
+      <div class="stat-card"><div class="stat-icon">💸</div><div class="stat-val" id="s-payments">—</div><div class="stat-label">Payments Recorded</div></div>
+      <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-val" id="s-volume">—</div><div class="stat-label">Total Volume (INR)</div></div>
+      <div class="stat-card"><div class="stat-icon">🆕</div><div class="stat-val" id="s-today">—</div><div class="stat-label">New Users Today</div><div class="stat-badge badge-gold">Today</div></div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="section-header" style="margin-bottom:14px">
+      <div class="section-title">Quick Actions</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:28px">
+      <button class="btn-sm btn-primary-sm" onclick="openCreateUser()">➕ Add User</button>
+      <button class="btn-sm btn-edit-sm" onclick="showView('users')">👥 Manage Users</button>
+      <button class="btn-sm btn-edit-sm" onclick="showView('groups')">🏠 Manage Groups</button>
+      <button class="btn-sm btn-edit-sm" onclick="showView('activity')">⚡ Recent Activity</button>
+    </div>
+  </div>
+
+  <!-- ── ACTIVITY ── -->
+  <div class="view" id="view-activity">
+    <div class="two-col" id="activity-content">
+      <div class="activity-card">
+        <div class="activity-title">📅 Signups Last 7 Days</div>
+        <div class="chart-bar-wrap" id="signup-chart"></div>
+      </div>
+      <div class="activity-card">
+        <div class="activity-title">🆕 Recent Registrations</div>
+        <div id="recent-users-list"><div class="empty">Loading…</div></div>
+      </div>
+      <div class="activity-card" style="grid-column:1/-1">
+        <div class="activity-title">🧾 Recent Expenses</div>
+        <div id="recent-expenses-list"><div class="empty">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── USERS ── -->
+  <div class="view" id="view-users">
+    <div class="section-header">
+      <div class="section-title">All Users</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="search-box"><span style="color:var(--gray2);margin-right:4px">🔍</span><input id="user-search" placeholder="Search name, email, phone…" oninput="debounceUserSearch()"></div>
+        <button class="btn-sm btn-primary-sm" onclick="openCreateUser()">➕ Add User</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>User</th><th>Phone</th><th>Groups</th><th>Expenses</th><th>Spent</th><th>Joined</th><th>Status</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="users-tbody"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="users-pagination"></div>
+  </div>
+
+  <!-- ── GROUPS ── -->
+  <div class="view" id="view-groups">
+    <div class="section-header">
+      <div class="section-title">All Groups</div>
+      <div class="search-box"><span style="color:var(--gray2);margin-right:4px">🔍</span><input id="group-search" placeholder="Search groups, creators…" oninput="debounceGroupSearch()"></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Group</th><th>Created By</th><th>Members</th><th>Expenses</th><th>Total Spent</th><th>Created</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="groups-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="groups-pagination"></div>
+  </div>
+</main>
+
+<!-- CREATE / EDIT USER MODAL -->
+<div class="overlay" id="user-modal" onclick="if(event.target===this)closeUserModal()">
+  <div class="modal">
+    <button class="modal-x" onclick="closeUserModal()">&#x2715;</button>
+    <div class="modal-title" id="user-modal-title">Add New User</div>
+    <input type="hidden" id="edit-user-id">
+    <div class="form-row-2">
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="u-name" placeholder="John Doe">
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="u-currency">
+          <option value="INR">₹ INR</option><option value="USD">$ USD</option>
+          <option value="EUR">€ EUR</option><option value="GBP">£ GBP</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Email Address *</label>
+      <input type="email" id="u-email" placeholder="user@email.com">
+    </div>
+    <div class="form-group">
+      <label>Phone Number</label>
+      <input type="tel" id="u-phone" placeholder="+91 9876543210">
+    </div>
+    <div class="form-group">
+      <label id="u-pw-label">Password *</label>
+      <input type="password" id="u-password" placeholder="Min 6 characters">
+    </div>
+    <div class="err-box" id="user-modal-err"></div>
+    <div class="success-box" id="user-modal-ok"></div>
+    <div class="modal-actions">
+      <button class="btn-sm" onclick="closeUserModal()" style="background:rgba(255,255,255,.05);color:#fff;border:1px solid var(--border)">Cancel</button>
+      <button class="btn-sm btn-primary-sm" onclick="submitUserModal()" id="user-modal-submit-btn">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER DETAIL MODAL -->
+<div class="overlay" id="detail-modal" onclick="if(event.target===this)closeDetailModal()">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-x" onclick="closeDetailModal()">&#x2715;</button>
+    <div class="modal-title" id="detail-modal-title">User Details</div>
+    <div id="detail-modal-body"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="overlay" id="confirm-modal" onclick="if(event.target===this)closeConfirm()">
+  <div class="modal" style="max-width:380px">
+    <button class="modal-x" onclick="closeConfirm()">&#x2715;</button>
+    <div class="modal-title" id="confirm-title">Confirm Action</div>
+    <div id="confirm-body" style="font-size:.9rem;color:var(--gray);margin-bottom:20px"></div>
+    <div class="modal-actions">
+      <button class="btn-sm" onclick="closeConfirm()" style="background:rgba(255,255,255,.05);color:#fff;border:1px solid var(--border)">Cancel</button>
+      <button class="btn-sm btn-danger-sm" id="confirm-ok-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────
+let usersPage = 1, groupsPage = 1;
+let userSearchTimer, groupSearchTimer;
+let confirmCallback = null;
+
+// ── INIT ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadStats();
+  setInterval(() => {
+    const now = new Date();
+    document.getElementById('topbar-time').textContent = now.toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'});
+  }, 1000);
+});
+
+// ── VIEW SWITCHER ─────────────────────────────────────────
+const VIEW_META = {
+  dashboard: { title: 'Dashboard', sub: 'Platform overview & key metrics' },
+  activity:  { title: 'Recent Activity', sub: 'Latest signups, expenses & events' },
+  users:     { title: 'User Management', sub: 'View, edit, ban or delete users' },
+  groups:    { title: 'Group Management', sub: 'View and delete groups' },
+};
+function showView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.toggle('active', el.id === 'view-'+v));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === v));
+  const m = VIEW_META[v] || {};
+  document.getElementById('view-title').textContent = m.title || v;
+  document.getElementById('view-sub').textContent = m.sub || '';
+  if (v === 'users') loadUsers();
+  if (v === 'groups') loadGroups();
+  if (v === 'activity') loadActivity();
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+// ── STATS ─────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const d = await api('/api/admin/stats');
+    document.getElementById('s-users').textContent = d.users.toLocaleString();
+    document.getElementById('s-groups').textContent = d.groups.toLocaleString();
+    document.getElementById('s-expenses').textContent = d.expenses.toLocaleString();
+    document.getElementById('s-payments').textContent = d.payments.toLocaleString();
+    document.getElementById('s-volume').textContent = '₹' + Number(d.total_volume).toLocaleString('en-IN', {maximumFractionDigits:0});
+    document.getElementById('s-today').textContent = d.new_today;
+    document.getElementById('s-new-week').textContent = '+' + d.new_week + ' this week';
+    document.getElementById('s-active').textContent = d.active_groups + ' active';
+  } catch(e) { console.error(e); }
+}
+
+// ── USERS ─────────────────────────────────────────────────
+async function loadUsers(page) {
+  if (page) usersPage = page;
+  const q = document.getElementById('user-search').value.trim();
+  try {
+    const d = await api(`/api/admin/users?page=${usersPage}&per=15${q?'&q='+encodeURIComponent(q):''}`);
+    const tbody = document.getElementById('users-tbody');
+    if (!d.users.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No users found</td></tr>'; renderPagination('users', d); return; }
+    tbody.innerHTML = d.users.map(u => `
+      <tr>
+        <td><div class="user-cell">
+          <div class="avatar">${u.name[0].toUpperCase()}</div>
+          <div class="user-info"><div class="user-name">${esc(u.name)}</div><div class="user-email">${esc(u.email)}</div></div>
+        </div></td>
+        <td style="color:var(--gray);font-size:.8rem">${u.phone || '—'}</td>
+        <td>${u.grp_count}</td>
+        <td>${u.exp_count}</td>
+        <td style="font-size:.82rem">₹${Number(u.total_spent||0).toLocaleString('en-IN',{maximumFractionDigits:0})}</td>
+        <td style="color:var(--gray);font-size:.78rem">${fmtDate(u.created_at)}</td>
+        <td><span class="tag ${u.is_banned ? 'tag-banned' : 'tag-active'}">${u.is_banned ? 'Banned' : 'Active'}</span></td>
+        <td>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <button class="btn-sm btn-edit-sm" onclick="viewUserDetail(${u.id})">View</button>
+            <button class="btn-sm btn-edit-sm" onclick="openEditUser(${u.id},'${esc(u.name)}','${esc(u.email)}','${u.phone||''}','${u.currency||'INR'}')">Edit</button>
+            ${u.is_banned
+              ? `<button class="btn-sm btn-primary-sm" onclick="banUser(${u.id},false)">Unban</button>`
+              : `<button class="btn-sm btn-warn-sm" onclick="banUser(${u.id},true)">Ban</button>`}
+            <button class="btn-sm btn-danger-sm" onclick="deleteUser(${u.id},'${esc(u.name)}')">Delete</button>
+          </div>
+        </td>
+      </tr>`).join('');
+    renderPagination('users', d);
+  } catch(e) { document.getElementById('users-tbody').innerHTML = '<tr><td colspan="8" class="empty">Error loading users</td></tr>'; }
+}
+
+function debounceUserSearch() {
+  clearTimeout(userSearchTimer);
+  userSearchTimer = setTimeout(() => { usersPage = 1; loadUsers(); }, 350);
+}
+
+// ── GROUPS ────────────────────────────────────────────────
+async function loadGroups(page) {
+  if (page) groupsPage = page;
+  const q = document.getElementById('group-search').value.trim();
+  try {
+    const d = await api(`/api/admin/groups?page=${groupsPage}&per=15${q?'&q='+encodeURIComponent(q):''}`);
+    const tbody = document.getElementById('groups-tbody');
+    if (!d.groups.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No groups found</td></tr>'; renderPagination('groups', d); return; }
+    tbody.innerHTML = d.groups.map(g => `
+      <tr>
+        <td><div style="font-weight:500">${esc(g.name)}</div>${g.description ? `<div style="font-size:.74rem;color:var(--gray)">${esc(g.description.substring(0,50))}</div>` : ''}</td>
+        <td style="font-size:.84rem">${esc(g.creator)}</td>
+        <td>${g.member_count}</td>
+        <td>${g.exp_count}</td>
+        <td style="font-size:.82rem">₹${Number(g.total||0).toLocaleString('en-IN',{maximumFractionDigits:0})}</td>
+        <td style="color:var(--gray);font-size:.78rem">${fmtDate(g.created_at)}</td>
+        <td><button class="btn-sm btn-danger-sm" onclick="deleteGroup(${g.id},'${esc(g.name)}')">Delete</button></td>
+      </tr>`).join('');
+    renderPagination('groups', d);
+  } catch(e) { document.getElementById('groups-tbody').innerHTML = '<tr><td colspan="7" class="empty">Error loading groups</td></tr>'; }
+}
+
+function debounceGroupSearch() {
+  clearTimeout(groupSearchTimer);
+  groupSearchTimer = setTimeout(() => { groupsPage = 1; loadGroups(); }, 350);
+}
+
+// ── ACTIVITY ──────────────────────────────────────────────
+async function loadActivity() {
+  try {
+    const d = await api('/api/admin/activity');
+
+    // Signup chart
+    const maxCnt = Math.max(...d.signups_7d.map(r => r.cnt), 1);
+    document.getElementById('signup-chart').innerHTML = d.signups_7d.length
+      ? d.signups_7d.map(r => `
+          <div class="chart-bar-row">
+            <div class="chart-label">${r.day.slice(5)}</div>
+            <div class="chart-bar-bg"><div class="chart-bar" style="width:${(r.cnt/maxCnt*100).toFixed(0)}%"></div></div>
+            <div class="chart-count">${r.cnt}</div>
+          </div>`).join('')
+      : '<div class="empty" style="padding:16px">No signups in last 7 days</div>';
+
+    // Recent users
+    document.getElementById('recent-users-list').innerHTML = d.recent_users.length
+      ? d.recent_users.map(u => `
+          <div class="activity-row">
+            <div class="avatar" style="width:28px;height:28px;font-size:.7rem">${u.name[0].toUpperCase()}</div>
+            <div class="activity-text"><strong>${esc(u.name)}</strong><br><span style="font-size:.75rem;color:var(--gray)">${esc(u.email)}</span></div>
+            <div class="activity-time">${fmtDate(u.created_at)}</div>
+          </div>`).join('')
+      : '<div class="empty">No recent users</div>';
+
+    // Recent expenses
+    document.getElementById('recent-expenses-list').innerHTML = d.recent_expenses.length
+      ? `<table style="width:100%;border-collapse:collapse">
+          <thead><tr><th style="padding:8px;text-align:left;font-size:.68rem;color:var(--gray2);border-bottom:1px solid var(--border)">Title</th><th>Amount</th><th>Payer</th><th>Group</th><th>Category</th><th>Date</th></tr></thead>
+          <tbody>${d.recent_expenses.map(e => `
+            <tr>
+              <td style="padding:8px;font-size:.84rem">${esc(e.title)}</td>
+              <td style="padding:8px;font-size:.82rem;color:var(--mint)">₹${Number(e.amount).toLocaleString('en-IN',{maximumFractionDigits:0})}</td>
+              <td style="padding:8px;font-size:.8rem">${esc(e.payer)}</td>
+              <td style="padding:8px;font-size:.8rem;color:var(--gray)">${esc(e.grp)}</td>
+              <td style="padding:8px"><span class="tag badge-blue">${esc(e.category)}</span></td>
+              <td style="padding:8px;font-size:.75rem;color:var(--gray2)">${fmtDate(e.created_at)}</td>
+            </tr>`).join('')}
+          </tbody></table>`
+      : '<div class="empty">No recent expenses</div>';
+  } catch(e) { console.error(e); }
+}
+
+// ── USER DETAIL ───────────────────────────────────────────
+async function viewUserDetail(id) {
+  document.getElementById('detail-modal-title').textContent = 'User Details';
+  document.getElementById('detail-modal-body').innerHTML = '<div class="empty">Loading…</div>';
+  document.getElementById('detail-modal').classList.add('open');
+  try {
+    const d = await api(`/api/admin/users/${id}`);
+    const u = d.user;
+    document.getElementById('detail-modal-title').textContent = u.name;
+    document.getElementById('detail-modal-body').innerHTML = `
+      <div class="detail-section">
+        <h4>Account Info</h4>
+        <div class="detail-kv"><span class="detail-k">Email</span><span class="detail-v">${esc(u.email)}</span></div>
+        <div class="detail-kv"><span class="detail-k">Phone</span><span class="detail-v">${u.phone||'—'}</span></div>
+        <div class="detail-kv"><span class="detail-k">Currency</span><span class="detail-v">${u.currency}</span></div>
+        <div class="detail-kv"><span class="detail-k">Status</span><span class="detail-v"><span class="tag ${u.is_banned?'tag-banned':'tag-active'}">${u.is_banned?'Banned':'Active'}</span></span></div>
+        <div class="detail-kv"><span class="detail-k">Joined</span><span class="detail-v">${fmtDate(u.created_at)}</span></div>
+      </div>
+      <div class="detail-section">
+        <h4>Groups (${d.groups.length})</h4>
+        <div class="mini-list">${d.groups.length ? d.groups.map(g=>`<div class="mini-item">🏠 <strong>${esc(g.name)}</strong> <span style="color:var(--gray);font-size:.75rem">joined ${fmtDate(g.joined_at)}</span></div>`).join('') : '<div style="color:var(--gray);font-size:.84rem">No groups</div>'}</div>
+      </div>
+      <div class="detail-section">
+        <h4>Recent Expenses (${d.expenses.length})</h4>
+        <div class="mini-list">${d.expenses.length ? d.expenses.map(e=>`<div class="mini-item" style="display:flex;justify-content:space-between"><span>🧾 ${esc(e.title)} <span style="font-size:.72rem;color:var(--gray)">(${esc(e.grp_name)})</span></span><span style="color:var(--mint)">₹${Number(e.amount).toLocaleString()}</span></div>`).join('') : '<div style="color:var(--gray);font-size:.84rem">No expenses</div>'}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--border)">
+        <button class="btn-sm btn-edit-sm" onclick="closeDetailModal();openEditUser(${u.id},'${esc(u.name)}','${esc(u.email)}','${u.phone||''}','${u.currency}')">✏️ Edit User</button>
+        ${u.is_banned
+          ? `<button class="btn-sm btn-primary-sm" onclick="closeDetailModal();banUser(${u.id},false)">✅ Unban User</button>`
+          : `<button class="btn-sm btn-warn-sm" onclick="closeDetailModal();banUser(${u.id},true)">🚫 Ban User</button>`}
+        <button class="btn-sm btn-danger-sm" onclick="closeDetailModal();deleteUser(${u.id},'${esc(u.name)}')">🗑️ Delete User</button>
+      </div>`;
+  } catch(e) { document.getElementById('detail-modal-body').innerHTML = '<div class="empty">Failed to load</div>'; }
+}
+function closeDetailModal() { document.getElementById('detail-modal').classList.remove('open'); }
+
+// ── CREATE / EDIT USER ────────────────────────────────────
+function openCreateUser() {
+  document.getElementById('user-modal-title').textContent = 'Add New User';
+  document.getElementById('edit-user-id').value = '';
+  document.getElementById('u-name').value = '';
+  document.getElementById('u-email').value = '';
+  document.getElementById('u-phone').value = '';
+  document.getElementById('u-password').value = '';
+  document.getElementById('u-currency').value = 'INR';
+  document.getElementById('u-pw-label').textContent = 'Password *';
+  document.getElementById('u-password').placeholder = 'Min 6 characters';
+  document.getElementById('user-modal-submit-btn').textContent = 'Create User';
+  document.getElementById('user-modal-err').classList.remove('show');
+  document.getElementById('user-modal-ok').classList.remove('show');
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function openEditUser(id, name, email, phone, currency) {
+  document.getElementById('user-modal-title').textContent = 'Edit User';
+  document.getElementById('edit-user-id').value = id;
+  document.getElementById('u-name').value = name;
+  document.getElementById('u-email').value = email;
+  document.getElementById('u-phone').value = phone || '';
+  document.getElementById('u-password').value = '';
+  document.getElementById('u-currency').value = currency || 'INR';
+  document.getElementById('u-pw-label').textContent = 'New Password (leave blank to keep)';
+  document.getElementById('u-password').placeholder = 'Leave blank to keep current';
+  document.getElementById('user-modal-submit-btn').textContent = 'Save Changes';
+  document.getElementById('user-modal-err').classList.remove('show');
+  document.getElementById('user-modal-ok').classList.remove('show');
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function closeUserModal() { document.getElementById('user-modal').classList.remove('open'); }
+
+async function submitUserModal() {
+  const id    = document.getElementById('edit-user-id').value;
+  const name  = document.getElementById('u-name').value.trim();
+  const email = document.getElementById('u-email').value.trim();
+  const phone = document.getElementById('u-phone').value.trim();
+  const pw    = document.getElementById('u-password').value;
+  const curr  = document.getElementById('u-currency').value;
+  const errEl = document.getElementById('user-modal-err');
+  const okEl  = document.getElementById('user-modal-ok');
+  errEl.classList.remove('show'); okEl.classList.remove('show');
+
+  if (!name) { showModalErr(errEl, 'Full name is required.'); return; }
+  if (!email) { showModalErr(errEl, 'Email is required.'); return; }
+  if (!id && !pw) { showModalErr(errEl, 'Password is required for new users.'); return; }
+
+  const btn = document.getElementById('user-modal-submit-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>' + (id ? 'Saving…' : 'Creating…');
+
+  try {
+    let r, d;
+    if (id) {
+      const payload = { name, email, phone, currency: curr };
+      if (pw) payload.password = pw;
+      r = await fetch(`/api/admin/users/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    } else {
+      r = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, email, phone, password:pw, currency:curr})});
+    }
+    d = await r.json();
+    if (!r.ok) { showModalErr(errEl, d.error||'Failed.'); btn.disabled=false; btn.innerHTML=id?'Save Changes':'Create User'; return; }
+    okEl.textContent = id ? 'Changes saved!' : 'User created successfully!';
+    okEl.classList.add('show');
+    setTimeout(() => { closeUserModal(); loadUsers(); loadStats(); }, 1200);
+  } catch(e) { showModalErr(errEl, 'Network error.'); }
+  btn.disabled=false; btn.innerHTML=id?'Save Changes':'Create User';
+}
+
+// ── BAN / DELETE ──────────────────────────────────────────
+function banUser(id, ban) {
+  openConfirm(
+    ban ? '🚫 Ban User' : '✅ Unban User',
+    ban ? 'This user will be blocked from signing in. Their data will be preserved.' : 'This user will be able to sign in again.',
+    async () => {
+      await api(`/api/admin/users/${id}/${ban?'ban':'unban'}`, 'POST');
+      toast(ban ? 'User banned' : 'User unbanned', 'success');
+      loadUsers(); loadStats();
+    }
+  );
+}
+
+function deleteUser(id, name) {
+  openConfirm(
+    '🗑️ Delete User',
+    `Permanently delete <strong>${esc(name)}</strong>? All their groups, expenses and data will be removed. This cannot be undone.`,
+    async () => {
+      await api(`/api/admin/users/${id}`, 'DELETE');
+      toast('User deleted', 'success');
+      loadUsers(); loadStats();
+    }
+  );
+}
+
+function deleteGroup(id, name) {
+  openConfirm(
+    '🗑️ Delete Group',
+    `Permanently delete group <strong>${esc(name)}</strong>? All expenses and payments in this group will be removed.`,
+    async () => {
+      await api(`/api/admin/groups/${id}`, 'DELETE');
+      toast('Group deleted', 'success');
+      loadGroups(); loadStats();
+    }
+  );
+}
+
+// ── CONFIRM MODAL ─────────────────────────────────────────
+function openConfirm(title, body, cb) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-body').innerHTML = body;
+  confirmCallback = cb;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirm-modal').classList.remove('open'); confirmCallback = null; }
+document.getElementById('confirm-ok-btn').onclick = async () => {
+  if (confirmCallback) { await confirmCallback(); closeConfirm(); }
+};
+
+// ── PAGINATION ────────────────────────────────────────────
+function renderPagination(type, d) {
+  const total = d.total, per = d.per, page = d.page;
+  const pages = Math.ceil(total / per);
+  const el = document.getElementById(type+'-pagination');
+  if (pages <= 1) { el.innerHTML = `<span>${total} record${total!==1?'s':''}</span>`; return; }
+  const load = type === 'users' ? loadUsers : loadGroups;
+  el.innerHTML = `
+    <span>${total} records &nbsp;·&nbsp; Page ${page} of ${pages}</span>
+    <button class="page-btn" onclick="${type==='users'?'loadUsers':'loadGroups'}(${page-1})" ${page<=1?'disabled':''}>‹ Prev</button>
+    <button class="page-btn" onclick="${type==='users'?'loadUsers':'loadGroups'}(${page+1})" ${page>=pages?'disabled':''}>Next ›</button>`;
+}
+
+// ── LOGOUT ────────────────────────────────────────────────
+async function doLogout() {
+  await api('/api/admin/logout', 'POST');
+  window.location.href = '/admin/login';
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+async function api(url, method='GET', body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'API error');
+  return d;
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s.replace(' ','T')+'Z');
+  return isNaN(d) ? s.substring(0,10) : d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+}
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+function showModalErr(el, msg) { el.textContent = msg; el.classList.add('show'); }
+</script>
+</body>
+</html>

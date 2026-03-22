@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SplitWise Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#0f1c2e;color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 60% 20%, rgba(20,149,136,.12) 0%, transparent 60%),radial-gradient(ellipse at 20% 80%, rgba(13,73,75,.15) 0%, transparent 55%);pointer-events:none}
+.card{position:relative;z-index:1;background:#172a43;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:44px 40px;width:100%;max-width:380px;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.admin-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:100px;padding:5px 14px;font-size:.72rem;color:#fca5a5;letter-spacing:.8px;text-transform:uppercase;margin-bottom:24px}
+.admin-badge::before{content:'🔒'}
+h1{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px}
+.sub{font-size:.88rem;color:rgba(255,255,255,.4);margin-bottom:32px}
+.form-group{margin-bottom:18px}
+label{display:block;font-size:.8rem;font-weight:500;color:rgba(255,255,255,.55);margin-bottom:7px}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:48px}
+input{width:100%;padding:13px 16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:1rem;outline:none;transition:all .2s}
+input:focus{border-color:#149588;background:rgba(20,149,136,.07);box-shadow:0 0 0 3px rgba(20,149,136,.15)}
+input::placeholder{color:rgba(255,255,255,.22)}
+.eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.3);padding:4px;display:flex;align-items:center;transition:color .2s}
+.eye:hover{color:rgba(255,255,255,.65)}
+.btn{width:100%;padding:14px;background:#0d494b;border:none;border-radius:10px;color:#fff;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;position:relative;overflow:hidden;transition:all .2s}
+.btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1),transparent)}
+.btn:hover{background:#149588;transform:translateY(-1px);box-shadow:0 8px 20px rgba(13,115,119,.35)}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 14px;font-size:.84rem;color:#fca5a5;margin-top:12px;display:none}
+.err.show{display:block}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.back-link{display:block;text-align:center;margin-top:20px;font-size:.82rem;color:rgba(255,255,255,.3);text-decoration:none}
+.back-link:hover{color:rgba(255,255,255,.6)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="admin-badge">Admin Panel</div>
+  <h1>Admin Access</h1>
+  <div class="sub">Enter the admin password to continue</div>
+  <div class="form-group">
+    <label>Admin Password</label>
+    <div class="pw-wrap">
+      <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password">
+      <button class="eye" type="button" onclick="toggleEye()" id="eye-btn">
+        <svg id="eye-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </div>
+  <button class="btn" onclick="doLogin()" id="btn">Sign In as Admin</button>
+  <div class="err" id="err"></div>
+  <a href="/" class="back-link">← Back to SplitWise</a>
+</div>
+<script>
+const OPEN_EYE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const SHUT_EYE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+let shown = false;
+function toggleEye() {
+  shown = !shown;
+  const inp = document.getElementById('pw');
+  inp.type = shown ? 'text' : 'password';
+  document.getElementById('eye-btn').innerHTML = shown ? SHUT_EYE : OPEN_EYE;
+}
+async function doLogin() {
+  const btn = document.getElementById('btn'), err = document.getElementById('err');
+  const pw = document.getElementById('pw').value;
+  if (!pw) { showErr('Enter the admin password.'); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Verifying…';
+  try {
+    const r = await fetch('/api/admin/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})});
+    const d = await r.json();
+    if (!r.ok) { showErr(d.error||'Incorrect password.'); btn.disabled=false; btn.innerHTML='Sign In as Admin'; return; }
+    window.location.href = '/admin';
+  } catch(e) { showErr('Network error.'); btn.disabled=false; btn.innerHTML='Sign In as Admin'; }
+}
+function showErr(msg) {
+  const el = document.getElementById('err');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+document.getElementById('pw').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

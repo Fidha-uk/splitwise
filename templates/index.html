@@ -2,270 +2,115 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SplitWise — Group Expense Sharing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <style>
 :root {
-  --navy:    #172a43;
-  --navy2:   #0d264a;
-  --teal:    #0d494b;
-  --mint:    #149588;
-  --light:   #e8f4f8;
-  --white:   #ffffff;
-  --gray:    #14253c;
-  --danger:  #950f0f;
-  --gold:    #f59e0b;
+  --navy:#172a43; --navy2:#0d264a; --teal:#0d494b; --mint:#149588;
+  --white:#fff; --gold:#f59e0b;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--white);min-height:100dvh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(16,161,166,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(13,115,119,.06) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+.orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+.orb-1{width:500px;height:500px;background:rgba(13,115,119,.18);top:-150px;right:-100px;animation:drift 8s ease-in-out infinite alternate}
+.orb-2{width:350px;height:350px;background:rgba(20,189,172,.12);bottom:-100px;left:-80px;animation:drift 10s ease-in-out infinite alternate-reverse}
+@keyframes drift{from{transform:translate(0,0)}to{transform:translate(30px,30px)}}
+.container{position:relative;z-index:1;display:grid;grid-template-columns:1fr 480px;min-height:100dvh}
+.hero{padding:60px;display:flex;flex-direction:column;justify-content:space-between}
+.logo{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;letter-spacing:-.5px}
+.logo span{color:var(--mint)}
+.hero-body{flex:1;display:flex;flex-direction:column;justify-content:center;padding:60px 0 40px}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(20,189,172,.12);border:1px solid rgba(20,189,172,.3);border-radius:100px;padding:6px 16px;font-size:.78rem;color:var(--mint);letter-spacing:1px;text-transform:uppercase;margin-bottom:28px;width:fit-content}
+.hero-tag::before{content:'●';font-size:.5rem}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(2.8rem,5vw,4.5rem);font-weight:800;line-height:1.05;letter-spacing:-2px;margin-bottom:24px}
+.hero h1 em{color:var(--mint);font-style:normal}
+.hero p{font-size:1.1rem;color:rgba(255,255,255,.55);line-height:1.7;max-width:480px;margin-bottom:44px}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:560px}
+.feature{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;transition:all .25s}
+.feature:hover{background:rgba(20,189,172,.08);border-color:rgba(20,189,172,.25);transform:translateY(-2px)}
+.feature-icon{font-size:1.5rem;margin-bottom:10px}
+.feature h4{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;margin-bottom:4px}
+.feature p{font-size:.75rem;color:rgba(255,255,255,.45);line-height:1.5}
+.hero-footer{font-size:.8rem;color:rgba(255,255,255,.25)}
+.auth-panel{background:rgba(255,255,255,.03);border-left:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;padding:48px 40px}
+.auth-box{width:100%;max-width:380px}
+.auth-tabs{display:flex;gap:4px;background:rgba(255,255,255,.05);border-radius:12px;padding:4px;margin-bottom:32px}
+.tab-btn{flex:1;padding:10px;background:none;border:none;cursor:pointer;border-radius:9px;font-family:'Syne',sans-serif;font-weight:600;font-size:.9rem;color:rgba(255,255,255,.4);transition:all .2s}
+.tab-btn.active{background:var(--teal);color:var(--white)}
+.form-title{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:8px}
+.form-subtitle{font-size:.88rem;color:rgba(255,255,255,.4);margin-bottom:28px}
+.form-group{margin-bottom:16px}
+.form-group label{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:7px;letter-spacing:.3px}
+.form-group input,.form-group select{width:100%;padding:13px 16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:1rem;transition:all .2s;outline:none;-webkit-appearance:none;appearance:none}
+.form-group input::placeholder{color:rgba(255,255,255,.25)}
+.form-group input:focus,.form-group select:focus{border-color:var(--mint);background:rgba(20,189,172,.06);box-shadow:0 0 0 3px rgba(20,189,172,.15)}
+.form-group select option{background:var(--navy2)}
+.identifier-toggle{display:flex;gap:6px;margin-bottom:10px}
+.id-toggle-btn{flex:1;padding:8px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.45);font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;transition:all .2s;text-align:center;-webkit-tap-highlight-color:transparent}
+.id-toggle-btn.active{background:rgba(20,189,172,.15);border-color:rgba(20,189,172,.4);color:var(--mint);font-weight:500}
+.pw-wrapper{position:relative}
+.pw-wrapper input{padding-right:48px}
+.pw-eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.35);padding:4px;display:flex;align-items:center;justify-content:center;transition:color .2s;-webkit-tap-highlight-color:transparent}
+.pw-eye:hover{color:rgba(255,255,255,.7)}
+.phone-input-row{display:flex;gap:8px}
+.phone-cc-select{width:110px !important;padding:13px 8px !important;flex-shrink:0;font-size:.88rem !important}
+.phone-number-input{flex:1}
+.btn-primary{width:100%;padding:15px;background:var(--teal);border:none;border-radius:10px;color:var(--white);font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:all .2s;margin-top:8px;position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1),transparent)}
+.btn-primary:hover{background:var(--mint);transform:translateY(-1px);box-shadow:0 8px 25px rgba(13,115,119,.4)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.forgot-link{background:none;border:none;color:var(--mint);font-size:.78rem;cursor:pointer;font-family:'DM Sans',sans-serif;padding:0;text-decoration:underline;text-underline-offset:2px;-webkit-tap-highlight-color:transparent}
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;font-size:.78rem;color:rgba(255,255,255,.25)}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.1)}
+.demo-btn{width:100%;padding:13px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:10px;color:var(--gold);font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:500;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.demo-btn:hover{background:rgba(245,158,11,.2)}
+.error-msg{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;font-size:.85rem;color:#fca5a5;margin-top:12px;display:none}
+.error-msg.show{display:block;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--navy);
-  color: var(--white);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+/* ── FORGOT PASSWORD MODAL ── */
+.modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:#1a2f4a;border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:32px 28px;width:100%;max-width:400px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.5);animation:popIn .25s ease}
+@keyframes popIn{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-x{position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.35);font-size:1.6rem;line-height:1;padding:4px 8px;transition:color .2s;-webkit-tap-highlight-color:transparent}
+.modal-x:hover{color:#fff}
+.fp-step{display:none}
+.fp-step.active{display:block}
+.otp-box{background:rgba(20,189,172,.1);border:1px dashed rgba(20,189,172,.4);border-radius:12px;padding:16px;text-align:center;margin:14px 0}
+.otp-digits{font-family:'Syne',monospace;font-size:2.4rem;font-weight:800;color:var(--mint);letter-spacing:10px;margin-top:4px}
+.otp-input-field{letter-spacing:8px;font-size:1.5rem;text-align:center;font-family:Syne,monospace}
+.success-icon{font-size:3.5rem;text-align:center;margin-bottom:14px}
 
-/* ── BACKGROUND GRID ── */
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background-image:
-    linear-gradient(rgba(16, 161, 166, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(13,115,119,0.06) 1px, transparent 1px);
-  background-size: 60px 60px;
-  pointer-events: none;
-  z-index: 0;
+@media(max-width:900px){
+  .container{grid-template-columns:1fr}
+  .hero{padding:32px 24px 20px}
+  .hero-body{padding:20px 0 12px}
+  .hero h1{font-size:2rem;letter-spacing:-1px}
+  .hero p{font-size:.92rem;margin-bottom:20px}
+  .features{grid-template-columns:1fr 1fr;gap:10px}
+  .feature{padding:14px}
+  .feature-icon{font-size:1.2rem;margin-bottom:6px}
+  .hero-footer{display:none}
+  .auth-panel{padding:28px 20px 40px;border-left:none;border-top:1px solid rgba(255,255,255,.07);align-items:flex-start}
+  .auth-box{max-width:100%}
+  .form-title{font-size:1.35rem}
 }
-
-.orb {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(80px);
-  pointer-events: none;
-  z-index: 0;
-}
-.orb-1 { width: 500px; height: 500px; background: rgba(13,115,119,0.18); top:-150px; right:-100px; animation: drift 8s ease-in-out infinite alternate; }
-.orb-2 { width: 350px; height: 350px; background: rgba(20,189,172,0.12); bottom:-100px; left:-80px; animation: drift 10s ease-in-out infinite alternate-reverse; }
-@keyframes drift { from{transform:translate(0,0)} to{transform:translate(30px,30px)} }
-
-/* ── LAYOUT ── */
-.container {
-  position: relative; z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr 480px;
-  min-height: 100vh;
-}
-
-/* ── LEFT HERO ── */
-.hero {
-  padding: 60px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.logo {
-  font-family: 'Syne', sans-serif;
-  font-size: 1.6rem;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-}
-.logo span { color: var(--mint); }
-
-.hero-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 60px 0 40px; }
-.hero-tag {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(20,189,172,0.12); border: 1px solid rgba(20,189,172,0.3);
-  border-radius: 100px; padding: 6px 16px;
-  font-size: 0.78rem; color: var(--mint); letter-spacing: 1px; text-transform: uppercase;
-  margin-bottom: 28px; width: fit-content;
-}
-.hero-tag::before { content:'●'; font-size:0.5rem; }
-
-.hero h1 {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(2.8rem, 5vw, 4.5rem);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -2px;
-  margin-bottom: 24px;
-}
-.hero h1 em { color: var(--mint); font-style: normal; }
-
-.hero p {
-  font-size: 1.1rem;
-  color: rgba(255,255,255,0.55);
-  line-height: 1.7;
-  max-width: 480px;
-  margin-bottom: 44px;
-}
-
-.features {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  max-width: 560px;
-}
-.feature {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  padding: 20px;
-  transition: all .25s;
-}
-.feature:hover { background: rgba(20,189,172,0.08); border-color: rgba(20,189,172,0.25); transform: translateY(-2px); }
-.feature-icon { font-size: 1.5rem; margin-bottom: 10px; }
-.feature h4 { font-family: 'Syne',sans-serif; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
-.feature p  { font-size: 0.75rem; color: rgba(255,255,255,0.45); line-height: 1.5; }
-
-.hero-footer {
-  font-size: 0.8rem;
-  color: rgba(255,255,255,0.25);
-}
-
-/* ── RIGHT AUTH PANEL ── */
-.auth-panel {
-  background: rgba(255,255,255,0.03);
-  border-left: 1px solid rgba(255,255,255,0.07);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 40px;
-}
-.auth-box {
-  width: 100%;
-  max-width: 380px;
-}
-.auth-tabs {
-  display: flex;
-  gap: 4px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 12px;
-  padding: 4px;
-  margin-bottom: 32px;
-}
-.tab-btn {
-  flex: 1; padding: 10px;
-  background: none; border: none; cursor: pointer;
-  border-radius: 9px;
-  font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.9rem;
-  color: rgba(255,255,255,0.4);
-  transition: all .2s;
-}
-.tab-btn.active {
-  background: var(--teal);
-  color: var(--white);
-}
-
-.form-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 1.6rem;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-.form-subtitle {
-  font-size: 0.88rem;
-  color: rgba(255,255,255,0.4);
-  margin-bottom: 28px;
-}
-
-.form-group { margin-bottom: 16px; }
-.form-group label {
-  display: block;
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: rgba(255,255,255,0.6);
-  margin-bottom: 7px;
-  letter-spacing: 0.3px;
-}
-.form-group input, .form-group select {
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
-  color: var(--white);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.95rem;
-  transition: all .2s;
-  outline: none;
-}
-.form-group input::placeholder { color: rgba(255,255,255,0.25); }
-.form-group input:focus, .form-group select:focus {
-  border-color: var(--mint);
-  background: rgba(20,189,172,0.06);
-  box-shadow: 0 0 0 3px rgba(20,189,172,0.15);
-}
-.form-group select option { background: var(--navy2); }
-
-.btn-primary {
-  width: 100%; padding: 14px;
-  background: var(--teal);
-  border: none; border-radius: 10px;
-  color: var(--white);
-  font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700;
-  cursor: pointer; letter-spacing: 0.3px;
-  transition: all .2s;
-  margin-top: 8px;
-  position: relative; overflow: hidden;
-}
-.btn-primary::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-}
-.btn-primary:hover { background: var(--mint); transform: translateY(-1px); box-shadow: 0 8px 25px rgba(13,115,119,0.4); }
-.btn-primary:active { transform: translateY(0); }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
-.divider {
-  display: flex; align-items: center; gap: 12px;
-  margin: 20px 0;
-  font-size: 0.78rem; color: rgba(255,255,255,0.25);
-}
-.divider::before, .divider::after {
-  content: ''; flex: 1;
-  height: 1px; background: rgba(255,255,255,0.1);
-}
-
-.demo-btn {
-  width: 100%; padding: 12px;
-  background: rgba(245,158,11,0.12);
-  border: 1px solid rgba(245,158,11,0.3); border-radius: 10px;
-  color: var(--gold);
-  font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500;
-  cursor: pointer; transition: all .2s;
-}
-.demo-btn:hover { background: rgba(245,158,11,0.2); }
-
-.error-msg {
-  background: rgba(239,68,68,0.12);
-  border: 1px solid rgba(239,68,68,0.3);
-  border-radius: 8px; padding: 10px 14px;
-  font-size: 0.85rem; color: #fca5a5;
-  margin-top: 12px; display: none;
-}
-.error-msg.show { display: block; animation: fadeIn .2s; }
-@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
-
-.spinner {
-  width: 18px; height: 18px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin .7s linear infinite;
-  display: inline-block; vertical-align: middle; margin-right: 6px;
-}
-@keyframes spin { to{transform:rotate(360deg)} }
-
-@media (max-width: 900px) {
-  .container { grid-template-columns: 1fr; }
-  .hero { padding: 40px 30px; }
-  .hero h1 { font-size: 2.4rem; }
-  .features { grid-template-columns: 1fr 1fr; }
-  .auth-panel { padding: 40px 24px; border-left: none; border-top: 1px solid rgba(255,255,255,0.07); }
+@media(max-width:480px){
+  .hero{padding:24px 18px 16px}
+  .features{gap:8px}
+  .feature{padding:12px}
+  .feature h4{font-size:.78rem}
+  .feature p{display:none}
+  .auth-panel{padding:20px 18px 48px}
+  .form-group input,.form-group select{font-size:16px}
+  .btn-primary{padding:16px;font-size:1.05rem}
 }
 </style>
 </head>
@@ -274,53 +119,24 @@ body::before {
 <div class="orb orb-2"></div>
 
 <div class="container">
-  <!-- HERO -->
   <div class="hero">
     <div class="logo">Split<span>Wise</span></div>
-
     <div class="hero-body">
       <div class="hero-tag">Automated Group Expense Sharing</div>
       <h1>Split bills.<br><em>Not friendships.</em></h1>
-      <p>Track group expenses effortlessly. Scan bills with OCR, split costs fairly, settle debts instantly — designed for trips, flatmates, and projects.</p>
-
+      <p>Track group expenses effortlessly. Snap bills with your camera, split costs fairly, settle debts instantly — designed for trips, flatmates, and projects.</p>
       <div class="features">
-        <div class="feature">
-          <div class="feature-icon">📷</div>
-          <h4>OCR Scanning</h4>
-          <p>Snap a receipt, auto-extract amounts</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">⚡</div>
-          <h4>Smart Splits</h4>
-          <p>split as your needs</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">📊</div>
-          <h4>Live Reports</h4>
-          <p>Real-time balances & summaries</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">👥</div>
-          <h4>Groups</h4>
-          <p>Multiple groups, zero confusion</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">💱</div>
-          <h4>Multi-currency</h4>
-          <p>INR, USD, EUR & more</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">✅</div>
-          <h4>Settle Up</h4>
-          <p>Minimal transactions to clear debts</p>
-        </div>
+        <div class="feature"><div class="feature-icon">📷</div><h4>OCR Scanning</h4><p>Snap a receipt, auto-extract amounts</p></div>
+        <div class="feature"><div class="feature-icon">⚡</div><h4>Smart Splits</h4><p>Split as per your needs</p></div>
+        <div class="feature"><div class="feature-icon">📊</div><h4>Live Reports</h4><p>Real-time balances &amp; summaries</p></div>
+        <div class="feature"><div class="feature-icon">👥</div><h4>Groups</h4><p>Multiple groups, zero confusion</p></div>
+        <div class="feature"><div class="feature-icon">💱</div><h4>Multi-currency</h4><p>INR, USD, EUR &amp; more</p></div>
+        <div class="feature"><div class="feature-icon">✅</div><h4>Settle Up</h4><p>Minimal transactions to clear debts</p></div>
       </div>
     </div>
-
-   
+    <div class="hero-footer">© 2026 SplitWise · Track smarter, split fairer</div>
   </div>
 
-  <!-- AUTH PANEL -->
   <div class="auth-panel">
     <div class="auth-box">
       <div class="auth-tabs">
@@ -328,53 +144,78 @@ body::before {
         <button class="tab-btn" onclick="showTab('register')">Register</button>
       </div>
 
-      <!-- LOGIN FORM -->
+      <!-- LOGIN -->
       <div id="login-form">
         <div class="form-title">Welcome back</div>
         <div class="form-subtitle">Sign in to your account</div>
-        <div class="form-group">
+        <div class="identifier-toggle">
+          <button class="id-toggle-btn active" id="login-email-toggle" onclick="switchLoginType('email')">📧 Email</button>
+          <button class="id-toggle-btn" id="login-phone-toggle" onclick="switchLoginType('phone')">📱 Phone</button>
+        </div>
+        <div class="form-group" id="login-email-group">
           <label>Email address</label>
-          <input type="email" id="login-email" placeholder="you@email.com" autocomplete="email">
+          <input type="email" id="login-email" placeholder="you@email.com" autocomplete="email" inputmode="email">
+        </div>
+        <div class="form-group" id="login-phone-group" style="display:none">
+          <label>Phone number</label>
+          <div class="phone-input-row">
+            <select id="login-cc" class="phone-cc-select">
+              <option value="+91">🇮🇳 +91</option><option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option><option value="+971">🇦🇪 +971</option>
+              <option value="+65">🇸🇬 +65</option><option value="+61">🇦🇺 +61</option>
+            </select>
+            <input type="tel" id="login-phone" placeholder="9876543210" class="phone-number-input" inputmode="tel" autocomplete="tel">
+          </div>
         </div>
         <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+          <label>
+            <span>Password</span>
+            <button type="button" class="forgot-link" onclick="showForgot()">Forgot password?</button>
+          </label>
+          <div class="pw-wrapper">
+            <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+            <button type="button" class="pw-eye" onclick="togglePw('login-password',this)" aria-label="Show/hide password">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         <button class="btn-primary" onclick="doLogin()" id="login-btn">Sign In</button>
         <div class="error-msg" id="login-error"></div>
         <div class="divider">or try a demo</div>
-        <button class="demo-btn" onclick="demoLogin()">🎯 Load Demo Data & Sign In</button>
+        <button class="demo-btn" onclick="demoLogin()">🎯 Load Demo Data &amp; Sign In</button>
       </div>
 
-      <!-- REGISTER FORM -->
+      <!-- REGISTER -->
       <div id="register-form" style="display:none">
         <div class="form-title">Create account</div>
         <div class="form-subtitle">Join and start splitting expenses</div>
         <div class="form-group">
           <label>Full name</label>
-          <input type="text" id="reg-name" placeholder="Your name">
+          <input type="text" id="reg-name" placeholder="Your name" autocomplete="name">
         </div>
         <div class="form-group">
           <label>Email address</label>
-          <input type="email" id="reg-email" placeholder="you@email.com">
+          <input type="email" id="reg-email" placeholder="you@email.com" autocomplete="email" inputmode="email">
         </div>
         <div class="form-group">
-          <label>Phone number <span style="opacity:.45;font-size:.78rem">(optional — used to find you in groups)</span></label>
-          <div style="display:flex;gap:8px">
-            <select id="reg-cc" style="width:110px;padding:12px 8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:.88rem;outline:none;flex-shrink:0">
-              <option value="+91">🇮🇳 +91</option>
-              <option value="+1">🇺🇸 +1</option>
-              <option value="+44">🇬🇧 +44</option>
-              <option value="+971">🇦🇪 +971</option>
-              <option value="+65">🇸🇬 +65</option>
-              <option value="+61">🇦🇺 +61</option>
+          <label>Phone <span style="opacity:.4;font-size:.76rem">(optional)</span></label>
+          <div class="phone-input-row">
+            <select id="reg-cc" class="phone-cc-select">
+              <option value="+91">🇮🇳 +91</option><option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option><option value="+971">🇦🇪 +971</option>
+              <option value="+65">🇸🇬 +65</option><option value="+61">🇦🇺 +61</option>
             </select>
-            <input type="tel" id="reg-phone" placeholder="9876543210" style="flex:1">
+            <input type="tel" id="reg-phone" placeholder="9876543210" class="phone-number-input" inputmode="tel" autocomplete="tel">
           </div>
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="reg-password" placeholder="Min 6 characters">
+          <div class="pw-wrapper">
+            <input type="password" id="reg-password" placeholder="Min 6 characters" autocomplete="new-password">
+            <button type="button" class="pw-eye" onclick="togglePw('reg-password',this)" aria-label="Show/hide">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         <div class="form-group">
           <label>Default currency</label>
@@ -392,53 +233,156 @@ body::before {
   </div>
 </div>
 
+<!-- FORGOT PASSWORD MODAL -->
+<div class="modal-overlay" id="fp-overlay" onclick="if(event.target===this)closeForgot()">
+  <div class="modal-box">
+    <button class="modal-x" onclick="closeForgot()">&#x2715;</button>
+
+    <!-- Step 1: Identify -->
+    <div class="fp-step active" id="fps-1">
+      <div class="form-title" style="font-size:1.3rem;margin-bottom:6px">Reset Password</div>
+      <div class="form-subtitle" style="margin-bottom:20px">Enter your registered email or phone number</div>
+      <div class="form-group">
+        <label>Email or Phone</label>
+        <input type="text" id="fp-id" placeholder="you@email.com or +91 98765 43210" inputmode="email" autocomplete="email">
+      </div>
+      <button class="btn-primary" onclick="fpSendOtp()" id="fp-send-btn">Get OTP</button>
+      <div class="error-msg" id="fp-err1"></div>
+    </div>
+
+    <!-- Step 2: OTP + new password -->
+    <div class="fp-step" id="fps-2">
+      <div class="form-title" style="font-size:1.3rem;margin-bottom:6px">Enter OTP</div>
+      <div class="form-subtitle" id="fp-sub" style="margin-bottom:6px">OTP has been generated</div>
+      <div class="otp-box" id="fp-otp-box" style="display:none">
+        <div style="font-size:.75rem;color:rgba(255,255,255,.45)">Your OTP — demo mode</div>
+        <div class="otp-digits" id="fp-otp-digits"></div>
+        <div style="font-size:.68rem;margin-top:6px;color:rgba(255,255,255,.3)">In production, sent to your email/phone</div>
+      </div>
+      <div class="form-group" style="margin-top:14px">
+        <label>6-digit OTP</label>
+        <input type="text" id="fp-otp-val" class="otp-input-field" placeholder="• • • • • •" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+      </div>
+      <div class="form-group">
+        <label>New Password</label>
+        <div class="pw-wrapper">
+          <input type="password" id="fp-pw1" placeholder="Min 6 characters">
+          <button type="button" class="pw-eye" onclick="togglePw('fp-pw1',this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <div class="pw-wrapper">
+          <input type="password" id="fp-pw2" placeholder="Repeat password">
+          <button type="button" class="pw-eye" onclick="togglePw('fp-pw2',this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="fpDoReset()" id="fp-reset-btn">Reset Password</button>
+      <div style="text-align:center;margin-top:10px">
+        <button onclick="fpGo(1)" style="background:none;border:none;color:rgba(255,255,255,.35);font-size:.8rem;cursor:pointer;font-family:'DM Sans',sans-serif">&#8592; Back</button>
+        <span style="color:rgba(255,255,255,.15);margin:0 8px">|</span>
+        <button onclick="fpSendOtp()" style="background:none;border:none;color:var(--mint);font-size:.8rem;cursor:pointer;font-family:'DM Sans',sans-serif">Resend OTP</button>
+      </div>
+      <div class="error-msg" id="fp-err2"></div>
+    </div>
+
+    <!-- Step 3: Done -->
+    <div class="fp-step" id="fps-3">
+      <div class="success-icon">✅</div>
+      <div class="form-title" style="font-size:1.4rem;text-align:center;margin-bottom:8px">Password Reset!</div>
+      <div class="form-subtitle" style="text-align:center;margin-bottom:24px">Your password has been updated. You can now sign in with your new password.</div>
+      <button class="btn-primary" onclick="closeForgot()">Back to Sign In</button>
+    </div>
+  </div>
+</div>
+
 <script>
+const EYE_OPEN = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_SHUT = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+function togglePw(id, btn) {
+  const el = document.getElementById(id);
+  const show = el.type === 'text';
+  el.type = show ? 'password' : 'text';
+  btn.innerHTML = show ? EYE_OPEN : EYE_SHUT;
+  btn.style.color = show ? 'rgba(255,255,255,.35)' : 'var(--mint)';
+}
+
+let loginType = 'email';
+function switchLoginType(t) {
+  loginType = t;
+  const em = t === 'email';
+  document.getElementById('login-email-group').style.display = em ? 'block' : 'none';
+  document.getElementById('login-phone-group').style.display = em ? 'none' : 'block';
+  document.getElementById('login-email-toggle').classList.toggle('active', em);
+  document.getElementById('login-phone-toggle').classList.toggle('active', !em);
+  setTimeout(() => { const el = document.getElementById(em ? 'login-email' : 'login-phone'); if(el) el.focus(); }, 50);
+}
+
 function showTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0 && tab==='login') || (i===1 && tab==='register')));
-  document.getElementById('login-form').style.display    = tab==='login'    ? 'block' : 'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('login-form').style.display = tab==='login' ? 'block' : 'none';
   document.getElementById('register-form').style.display = tab==='register' ? 'block' : 'none';
 }
 
 async function doLogin() {
-  const btn = document.getElementById('login-btn');
-  const err = document.getElementById('login-error');
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  if (!email || !password) { showErr(err, 'Please fill all fields.'); return; }
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Signing in…';
+  const btn = document.getElementById('login-btn'), err = document.getElementById('login-error');
+  let payload = {};
+  if (loginType === 'email') {
+    const v = document.getElementById('login-email').value.trim();
+    if (!v) { showErr(err,'Enter your email.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { showErr(err,'Enter a valid email.'); return; }
+    payload.email = v;
+  } else {
+    const cc = document.getElementById('login-cc').value;
+    const ph = document.getElementById('login-phone').value.trim();
+    if (!ph) { showErr(err,'Enter your phone number.'); return; }
+    if (!/^\d{7,15}$/.test(ph.replace(/\s/g,''))) { showErr(err,'Enter a valid phone number.'); return; }
+    payload.phone = cc + ph.replace(/^0+/,'').replace(/\s/g,'');
+  }
+  const pw = document.getElementById('login-password').value;
+  if (!pw) { showErr(err,'Enter your password.'); return; }
+  payload.password = pw;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Signing in…';
   try {
-    const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
+    const r = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const d = await r.json();
-    if (!r.ok) { showErr(err, d.error); btn.disabled=false; btn.innerHTML='Sign In'; return; }
+    if (!r.ok) { showErr(err, d.error||'Login failed.'); btn.disabled=false; btn.innerHTML='Sign In'; return; }
     window.location.href = '/dashboard';
-  } catch(e) { showErr(err, 'Network error.'); btn.disabled=false; btn.innerHTML='Sign In'; }
+  } catch(e) { showErr(err,'Network error.'); btn.disabled=false; btn.innerHTML='Sign In'; }
 }
 
 async function doRegister() {
-  const btn = document.getElementById('reg-btn');
-  const err = document.getElementById('reg-error');
-  const name     = document.getElementById('reg-name').value.trim();
-  const email    = document.getElementById('reg-email').value.trim();
-  const password = document.getElementById('reg-password').value;
+  const btn = document.getElementById('reg-btn'), err = document.getElementById('reg-error');
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pw = document.getElementById('reg-password').value;
   const currency = document.getElementById('reg-currency').value;
-  const cc       = document.getElementById('reg-cc').value;
-  const rawPhone = document.getElementById('reg-phone').value.trim();
-  const phone    = rawPhone ? cc + rawPhone.replace(/^0+/, '') : '';
-  if (!name || !email || !password) { showErr(err,'Please fill all required fields.'); return; }
-  if (password.length < 6) { showErr(err,'Password must be at least 6 characters.'); return; }
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Creating account…';
+  const cc = document.getElementById('reg-cc').value;
+  const rawPh = document.getElementById('reg-phone').value.trim();
+  const phone = rawPh ? cc + rawPh.replace(/^0+/,'').replace(/\s/g,'') : '';
+  if (!name) { showErr(err,'Enter your full name.'); return; }
+  if (!email) { showErr(err,'Enter your email address.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr(err,'Enter a valid email.'); return; }
+  if (!pw) { showErr(err,'Create a password.'); return; }
+  if (pw.length < 6) { showErr(err,'Password must be at least 6 characters.'); return; }
+  if (rawPh && !/^\d{7,15}$/.test(rawPh.replace(/\s/g,''))) { showErr(err,'Enter a valid phone number.'); return; }
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Creating account…';
   try {
-    const r = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, email, password, currency, phone}) });
+    const r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password:pw,currency,phone})});
     const d = await r.json();
-    if (!r.ok) { showErr(err, d.error); btn.disabled=false; btn.innerHTML='Create Account'; return; }
+    if (!r.ok) { showErr(err,d.error||'Registration failed.'); btn.disabled=false; btn.innerHTML='Create Account'; return; }
     window.location.href = '/dashboard';
   } catch(e) { showErr(err,'Network error.'); btn.disabled=false; btn.innerHTML='Create Account'; }
 }
 
 async function demoLogin() {
-  // seed first, then login
-  await fetch('/api/seed', {method:'POST'});
+  await fetch('/api/seed',{method:'POST'});
+  switchLoginType('email');
   document.getElementById('login-email').value = 'amaya@demo.com';
   document.getElementById('login-password').value = 'demo123';
   showTab('login');
@@ -446,17 +390,80 @@ async function demoLogin() {
 }
 
 function showErr(el, msg) {
-  el.textContent = msg;
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 4000);
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 5000);
 }
 
-// Enter key support
+// ── FORGOT PASSWORD ──────────────────────────────────────────
+let fpIdentifier = '';
+
+function showForgot() {
+  fpGo(1);
+  const prefill = loginType==='email' ? document.getElementById('login-email').value : '';
+  document.getElementById('fp-id').value = prefill;
+  document.getElementById('fp-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('fp-id').focus(), 200);
+}
+function closeForgot() {
+  document.getElementById('fp-overlay').classList.remove('open');
+  // If reset was successful, pre-fill login
+}
+function fpGo(n) {
+  document.querySelectorAll('.fp-step').forEach((el,i) => el.classList.toggle('active', i===n-1));
+}
+
+async function fpSendOtp() {
+  const btn = document.getElementById('fp-send-btn'), err = document.getElementById('fp-err1');
+  const id = document.getElementById('fp-id').value.trim();
+  if (!id) { showErr(err,'Enter your email or phone number.'); return; }
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Sending…';
+  try {
+    const r = await fetch('/api/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:id})});
+    const d = await r.json();
+    if (!r.ok) { showErr(err,d.error||'Not found.'); btn.disabled=false; btn.innerHTML='Get OTP'; return; }
+    fpIdentifier = id;
+    document.getElementById('fp-sub').textContent = `OTP generated for ${d.name||id}`;
+    if (d.demo && d.otp) {
+      document.getElementById('fp-otp-digits').textContent = d.otp;
+      document.getElementById('fp-otp-box').style.display = 'block';
+    }
+    document.getElementById('fp-otp-val').value = '';
+    document.getElementById('fp-pw1').value = '';
+    document.getElementById('fp-pw2').value = '';
+    fpGo(2);
+    setTimeout(() => document.getElementById('fp-otp-val').focus(), 100);
+  } catch(e) { showErr(err,'Network error.'); }
+  btn.disabled=false; btn.innerHTML='Get OTP';
+}
+
+async function fpDoReset() {
+  const btn = document.getElementById('fp-reset-btn'), err = document.getElementById('fp-err2');
+  const otp = document.getElementById('fp-otp-val').value.trim();
+  const pw1 = document.getElementById('fp-pw1').value;
+  const pw2 = document.getElementById('fp-pw2').value;
+  if (!otp || otp.length !== 6) { showErr(err,'Enter the 6-digit OTP.'); return; }
+  if (!pw1) { showErr(err,'Enter a new password.'); return; }
+  if (pw1.length < 6) { showErr(err,'Password must be at least 6 characters.'); return; }
+  if (pw1 !== pw2) { showErr(err,'Passwords do not match.'); return; }
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Resetting…';
+  try {
+    const r = await fetch('/api/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:fpIdentifier,otp,password:pw1})});
+    const d = await r.json();
+    if (!r.ok) { showErr(err,d.error||'Reset failed.'); btn.disabled=false; btn.innerHTML='Reset Password'; return; }
+    fpGo(3);
+  } catch(e) { showErr(err,'Network error.'); }
+  btn.disabled=false; btn.innerHTML='Reset Password';
+}
+
+// Enter key handling
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
-  const lf = document.getElementById('login-form');
-  const rf = document.getElementById('register-form');
-  if (lf.style.display !== 'none') doLogin();
+  if (document.getElementById('fp-overlay').classList.contains('open')) {
+    if (document.getElementById('fps-1').classList.contains('active')) fpSendOtp();
+    else if (document.getElementById('fps-2').classList.contains('active')) fpDoReset();
+    return;
+  }
+  if (document.getElementById('login-form').style.display !== 'none') doLogin();
   else doRegister();
 });
 </script>
